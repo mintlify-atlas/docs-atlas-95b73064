@@ -1,0 +1,305 @@
+---
+title: "Test Runs API: History, Results, and Reports"
+sidebarTitle: "Test Runs"
+description: "Retrieve test run history, individual run results with per-node details, and HTML reports for any past execution by run ID or project ID."
+---
+
+The Test Runs API provides persistent, queryable access to every execution that QA Flow has performed. Each test run is stored as a `TestRun` record in the database, with a nested array of `TestResult` objects — one for every node that was executed. You can list recent runs globally, fetch all runs for a specific project, drill into a single run's full results, or retrieve the generated HTML report for any completed run.
+
+---
+
+## TestRun Object
+
+<ResponseField name="id" type="string">
+  UUID of the test run.
+</ResponseField>
+
+<ResponseField name="projectId" type="string">
+  UUID of the project this run belongs to.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Lifecycle status of the run. One of: `pending`, `running`, `completed`, `failed`.
+</ResponseField>
+
+<ResponseField name="startedAt" type="string | null">
+  ISO 8601 timestamp when execution began, or `null` if still pending.
+</ResponseField>
+
+<ResponseField name="completedAt" type="string | null">
+  ISO 8601 timestamp when execution finished, or `null` if still running.
+</ResponseField>
+
+<ResponseField name="error" type="string | null">
+  Top-level error message if the entire run failed; `null` otherwise.
+</ResponseField>
+
+<ResponseField name="totalTests" type="number">
+  Total number of nodes executed in the run.
+</ResponseField>
+
+<ResponseField name="passedTests" type="number">
+  Number of nodes that passed.
+</ResponseField>
+
+<ResponseField name="failedTests" type="number">
+  Number of nodes that failed.
+</ResponseField>
+
+<ResponseField name="duration" type="number | null">
+  Total execution time in milliseconds, or `null` if not yet complete.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp when the `TestRun` record was created in the database.
+</ResponseField>
+
+<ResponseField name="results" type="TestResult[]">
+  Array of per-node result records. Populated when fetching an individual run via `GET /api/test-runs/:id`.
+
+  <Expandable title="TestResult fields">
+    <ResponseField name="id" type="string">UUID of the result record.</ResponseField>
+    <ResponseField name="testRunId" type="string">UUID of the parent test run.</ResponseField>
+    <ResponseField name="nodeId" type="string">ID of the flow node that produced this result.</ResponseField>
+    <ResponseField name="nodeType" type="string">Type of the node (e.g. `navigate`, `click`, `assert`, `fill`).</ResponseField>
+    <ResponseField name="nodeLabel" type="string | null">Human-readable label of the node, if configured.</ResponseField>
+    <ResponseField name="testName" type="string | null">Name of the Playwright test block the node belongs to.</ResponseField>
+    <ResponseField name="success" type="boolean">Whether the node action passed (`true`) or failed (`false`).</ResponseField>
+    <ResponseField name="message" type="string | null">Descriptive result message.</ResponseField>
+    <ResponseField name="error" type="string | null">Error message if the node failed; `null` on success.</ResponseField>
+    <ResponseField name="duration" type="number | null">Time in milliseconds the node action took to complete.</ResponseField>
+    <ResponseField name="screenshot" type="string | null">Path or base64-encoded screenshot captured at the time of failure.</ResponseField>
+    <ResponseField name="executedAt" type="string">ISO 8601 timestamp when this result was recorded.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+## GET /api/test-runs
+
+List the most recent test runs across all projects. Results are ordered by creation date descending. Use the `limit` query parameter to control the number of records returned.
+
+**Authentication required:** Yes
+
+### Query Parameters
+
+<ParamField query="limit" type="number">
+  Maximum number of test runs to return. Defaults to `20`.
+</ParamField>
+
+### Response
+
+An array of [TestRun objects](#testrun-object) (without the nested `results` array for performance — use `GET /api/test-runs/:id` to fetch results).
+
+<CodeGroup>
+```bash cURL
+curl 'http://localhost:3001/api/test-runs?limit=5' \
+  -H 'Authorization: Bearer <token>'
+```
+
+```json Response 200
+[
+  {
+    "id": "run-aaa-111",
+    "projectId": "proj-abc-123",
+    "status": "completed",
+    "startedAt": "2024-04-10T09:00:00.000Z",
+    "completedAt": "2024-04-10T09:00:45.000Z",
+    "error": null,
+    "totalTests": 8,
+    "passedTests": 8,
+    "failedTests": 0,
+    "duration": 45320,
+    "createdAt": "2024-04-10T09:00:00.000Z"
+  },
+  {
+    "id": "run-bbb-222",
+    "projectId": "proj-xyz-456",
+    "status": "failed",
+    "startedAt": "2024-04-09T15:30:00.000Z",
+    "completedAt": "2024-04-09T15:30:03.000Z",
+    "error": "Element not found: #submit-btn",
+    "totalTests": 3,
+    "passedTests": 1,
+    "failedTests": 2,
+    "duration": 3100,
+    "createdAt": "2024-04-09T15:30:00.000Z"
+  }
+]
+```
+</CodeGroup>
+
+---
+
+## GET /api/test-runs/:id
+
+Retrieve a single test run with its complete array of `TestResult` records. Use this endpoint to display a full execution report with per-node pass/fail details.
+
+**Authentication required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The UUID of the test run to retrieve.
+</ParamField>
+
+### Response
+
+A [TestRun object](#testrun-object) with a populated `results` array. Returns `404 Not Found` if the run does not exist.
+
+<CodeGroup>
+```bash cURL
+curl http://localhost:3001/api/test-runs/run-aaa-111 \
+  -H 'Authorization: Bearer <token>'
+```
+
+```json Response 200
+{
+  "id": "run-aaa-111",
+  "projectId": "proj-abc-123",
+  "status": "completed",
+  "startedAt": "2024-04-10T09:00:00.000Z",
+  "completedAt": "2024-04-10T09:00:45.000Z",
+  "error": null,
+  "totalTests": 2,
+  "passedTests": 2,
+  "failedTests": 0,
+  "duration": 3800,
+  "createdAt": "2024-04-10T09:00:00.000Z",
+  "results": [
+    {
+      "id": "res-001",
+      "testRunId": "run-aaa-111",
+      "nodeId": "node-1",
+      "nodeType": "navigate",
+      "nodeLabel": "Open homepage",
+      "testName": "Checkout flow",
+      "success": true,
+      "message": "Navigated to https://shop.example.com",
+      "error": null,
+      "duration": 920,
+      "screenshot": null,
+      "executedAt": "2024-04-10T09:00:01.000Z"
+    },
+    {
+      "id": "res-002",
+      "testRunId": "run-aaa-111",
+      "nodeId": "node-2",
+      "nodeType": "click",
+      "nodeLabel": "Add item to cart",
+      "testName": "Checkout flow",
+      "success": true,
+      "message": "Clicked #add-to-cart",
+      "error": null,
+      "duration": 215,
+      "screenshot": null,
+      "executedAt": "2024-04-10T09:00:02.000Z"
+    }
+  ]
+}
+```
+</CodeGroup>
+
+---
+
+## GET /api/test-runs/project/:projectId
+
+Retrieve the most recent test runs for a specific project, ordered by creation date descending. Useful for displaying a project's run history in the UI.
+
+**Authentication required:** Yes
+
+### Path Parameters
+
+<ParamField path="projectId" type="string" required>
+  The UUID of the project whose run history to retrieve.
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="limit" type="number">
+  Maximum number of test runs to return. Defaults to `10`.
+</ParamField>
+
+### Response
+
+An array of [TestRun objects](#testrun-object) (without nested results).
+
+<CodeGroup>
+```bash cURL
+curl 'http://localhost:3001/api/test-runs/project/proj-abc-123?limit=3' \
+  -H 'Authorization: Bearer <token>'
+```
+
+```json Response 200
+[
+  {
+    "id": "run-aaa-111",
+    "projectId": "proj-abc-123",
+    "status": "completed",
+    "startedAt": "2024-04-10T09:00:00.000Z",
+    "completedAt": "2024-04-10T09:00:45.000Z",
+    "error": null,
+    "totalTests": 8,
+    "passedTests": 8,
+    "failedTests": 0,
+    "duration": 45320,
+    "createdAt": "2024-04-10T09:00:00.000Z"
+  }
+]
+```
+</CodeGroup>
+
+---
+
+## GET /api/test-runs/:id/report
+
+Retrieve the HTML report generated for a completed test run. The response format is determined by content negotiation using the `Accept` header.
+
+**Authentication required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The UUID of the test run whose report to retrieve.
+</ParamField>
+
+### Content Negotiation
+
+<Tabs>
+  <Tab title="HTML Response">
+    When the request includes `Accept: text/html`, the server responds with the raw HTML report suitable for rendering directly in a browser iframe or a new tab.
+
+    ```bash
+    curl http://localhost:3001/api/test-runs/run-aaa-111/report \
+      -H 'Authorization: Bearer <token>' \
+      -H 'Accept: text/html'
+    ```
+
+    **Response:** `Content-Type: text/html` — full rendered HTML report.
+  </Tab>
+  <Tab title="JSON Response">
+    When the request omits the `Accept` header or uses `Accept: application/json`, the server responds with the report metadata and HTML content in a JSON envelope.
+
+    ```bash
+    curl http://localhost:3001/api/test-runs/run-aaa-111/report \
+      -H 'Authorization: Bearer <token>' \
+      -H 'Accept: application/json'
+    ```
+
+    ```json
+    {
+      "htmlContent": "<!DOCTYPE html><html>...</html>",
+      "summary": {
+        "totalTests": 8,
+        "passedTests": 8,
+        "failedTests": 0,
+        "duration": 45320
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+  Returns `404 Not Found` with `{ "error": "Reporte no encontrado" }` if no report has been generated for the specified test run yet. Reports are created automatically when a run completes.
+</Warning>

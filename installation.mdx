@@ -1,0 +1,253 @@
+---
+title: "Install QA Flow: npx, Docker, and Local Dev Setup"
+sidebarTitle: "Installation"
+description: "Install QA Flow via npx for instant use, run the Docker image directly, or set up a local development environment with the full source code."
+---
+
+QA Flow ships as a pre-built Docker image (`davidg1997/qa-flow`) that bundles the React frontend, Express backend, Prisma database layer, and a Playwright-ready Chromium installation into a single container. You can reach that image in three ways: through the convenience `npx` launcher, by running Docker directly, or by cloning the repository and starting the development stack with `pnpm`. Choose the method that best fits your workflow.
+
+<Tabs>
+  <Tab title="npx">
+    ## npx (Recommended for Quick Use)
+
+    The `npx` launcher is the fastest path to a running QA Flow instance. It requires no global installation — `npx` downloads the CLI package on demand, which in turn pulls the Docker image and starts the container for you.
+
+    ### Prerequisites
+
+    - **Node.js 18 or later** — [nodejs.org](https://nodejs.org/)
+    - **Docker** (Desktop or Engine) — [docs.docker.com/get-docker](https://docs.docker.com/get-docker/)
+
+    ### Start QA Flow
+
+    ```bash
+    npx @davidg97/qa-flow
+    ```
+
+    On first run the CLI pulls `davidg1997/qa-flow:latest` from Docker Hub. Subsequent runs use the cached image unless a newer version is available.
+
+    ### Customize the Port
+
+    The default port is **3001**. Use `-p` or `--port` to change it:
+
+    ```bash
+    npx @davidg97/qa-flow --port 8080
+    npx @davidg97/qa-flow -p 8080
+    ```
+
+    ### Other CLI Flags
+
+    ```bash
+    # Print the package version and exit
+    npx @davidg97/qa-flow --version
+
+    # Show full help text
+    npx @davidg97/qa-flow --help
+    ```
+
+    ### Persistent Data
+
+    The launcher automatically creates and mounts three named Docker volumes so your data survives container restarts:
+
+    | Volume | Mount Path in Container | Contents |
+    |---|---|---|
+    | `qa-flow-data` | `/app/data` | SQLite database |
+    | `qa-flow-screenshots` | `/app/server/screenshots` | Test screenshots |
+    | `qa-flow-recordings` | `/app/server/recordings` | Session recordings |
+
+    ### JWT Secret
+
+    If the `JWT_SECRET` environment variable is not set, the CLI generates a cryptographically random 32-byte secret automatically for that session. For persistent deployments, set it explicitly so token validity is maintained across restarts:
+
+    ```bash
+    JWT_SECRET="your-secret-min-32-chars" npx @davidg97/qa-flow
+    ```
+
+    <Warning>
+      A session-generated `JWT_SECRET` means all existing login sessions are invalidated whenever the container restarts. Always set a fixed `JWT_SECRET` for any non-throwaway deployment.
+    </Warning>
+  </Tab>
+
+  <Tab title="Docker">
+    ## Docker
+
+    Running the Docker image directly gives you full control over environment variables, volume bindings, and container lifecycle without needing Node.js on the host.
+
+    ### Basic Usage (SQLite — Local Storage)
+
+    ```bash
+    docker run -it --rm \
+      -p 3001:3001 \
+      -v qa-flow-data:/app/data \
+      davidg1997/qa-flow
+    ```
+
+    ### With Environment Variables
+
+    Set a fixed `JWT_SECRET` and explicit port for a stable deployment:
+
+    ```bash
+    docker run -it --rm \
+      -p 3001:3001 \
+      -e JWT_SECRET="your-secret-min-32-chars" \
+      -e PORT=3001 \
+      -v qa-flow-data:/app/data \
+      davidg1997/qa-flow
+    ```
+
+    ### With Turso Cloud Database
+
+    Replace the default SQLite file with a [Turso](https://turso.tech/) libSQL cloud database for a serverless, zero-ops data layer:
+
+    ```bash
+    docker run -it --rm \
+      -p 3001:3001 \
+      -e DATABASE_URL="libsql://your-db.turso.io" \
+      -e TURSO_AUTH_TOKEN="your-token" \
+      davidg1997/qa-flow
+    ```
+
+    ### With Docker Compose
+
+    For a more manageable setup, use the official `docker-compose.yml` from the repository. It declares the same volumes and environment variables in a readable format and supports `restart: unless-stopped` for server deployments:
+
+    ```yaml
+    services:
+      qa-flow:
+        image: davidg1997/qa-flow:latest
+        container_name: qa-flow
+        ports:
+          - "${PORT:-3001}:3001"
+        environment:
+          - NODE_ENV=${NODE_ENV:-production}
+          - PORT=3001
+          - DATABASE_URL=${DATABASE_URL:-file:/app/data/qa-flow.db}
+          - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+        volumes:
+          - qa-flow-data:/app/data
+          - qa-flow-screenshots:/app/server/screenshots
+          - qa-flow-recordings:/app/server/recordings
+        restart: unless-stopped
+
+    volumes:
+      qa-flow-data:
+      qa-flow-screenshots:
+      qa-flow-recordings:
+    ```
+
+    Start it with:
+
+    ```bash
+    docker compose up -d
+    ```
+
+    <Note>
+      The Docker image runs as a non-root user (`qaflow`) for improved security. The `/app/data` directory is pre-configured for SQLite writes by that user.
+    </Note>
+  </Tab>
+
+  <Tab title="Local Dev">
+    ## Local Development
+
+    Clone the repository and run the full development stack locally when you want to contribute to QA Flow, extend its node types, or experiment with the codebase.
+
+    ### Prerequisites
+
+    - **Node.js 18 or later** — [nodejs.org](https://nodejs.org/)
+    - **pnpm** — [pnpm.io/installation](https://pnpm.io/installation)
+
+    ### Steps
+
+    <Steps>
+      <Step title="Clone the repository">
+        ```bash
+        git clone https://github.com/davidG97/qa-flow.git
+        cd qa-flow
+        ```
+      </Step>
+
+      <Step title="Install dependencies">
+        Install all workspace packages with pnpm, then approve the post-install build scripts (press `a` to select all when prompted):
+
+        ```bash
+        pnpm install && pnpm approve-builds
+        ```
+
+        <Tip>
+          When `pnpm approve-builds` prompts you to select which packages may run build scripts, press **`a`** to approve all of them. This is required for packages like Playwright that compile native bindings during install.
+        </Tip>
+      </Step>
+
+      <Step title="Set up the database">
+        Copy the example environment file for the server, then run the Prisma migration and client generation:
+
+        ```bash
+        cp server/.env.example server/.env
+        pnpm db:migrate
+        pnpm db:generate
+        ```
+
+        The default `server/.env` configures a local SQLite database at `server/data/qa-flow.db`. Edit the file to point at a Turso cloud database if preferred.
+      </Step>
+
+      <Step title="Start the development servers">
+        Launch both the frontend (Vite) and backend (Express) with a single command:
+
+        ```bash
+        pnpm dev:all
+        ```
+
+        | Service | URL |
+        |---|---|
+        | **Frontend** (React + Vite HMR) | [http://localhost:3000](http://localhost:3000) |
+        | **Backend** (Express + API) | [http://localhost:3001](http://localhost:3001) |
+
+        The `dev:all` script uses `concurrently` to run `pnpm dev` (Vite frontend) and `pnpm --filter qa-flow-server dev` (Express backend with watch mode) side-by-side in one terminal window.
+      </Step>
+    </Steps>
+
+    ### Useful Development Scripts
+
+    ```bash
+    # Start only the backend server
+    pnpm server
+
+    # Run the full build (frontend + backend)
+    pnpm build:all
+
+    # Open Prisma Studio (database GUI)
+    pnpm db:studio
+
+    # Run backend tests
+    pnpm test
+    ```
+  </Tab>
+</Tabs>
+
+## Environment Variables
+
+All three installation methods respect the same set of environment variables. The table below covers every variable QA Flow currently recognises.
+
+| Variable | Description | Default |
+|---|---|---|
+| `PORT` | TCP port the Express server listens on inside the container | `3001` |
+| `JWT_SECRET` | Secret used to sign and verify JWT authentication tokens. Must be at least 32 characters for production use. | Auto-generated (random) if unset |
+| `DATABASE_URL` | Prisma database connection string. Use `file:/path/to/db.db` for SQLite or `libsql://…` for Turso. | `file:/app/data/qa-flow.db` |
+| `TURSO_AUTH_TOKEN` | Authentication token for Turso cloud databases. Required when `DATABASE_URL` points to a `libsql://` endpoint. | *(none)* |
+| `CDP_URL` | URL of a remote Chrome DevTools Protocol endpoint (e.g. `http://localhost:9222`). When set, Playwright connects to that Chrome instance instead of launching a new one. | *(none — launches headless Chromium)* |
+
+<Info>
+  When running locally with `pnpm dev:all`, environment variables for the backend are read from `server/.env`. When running via Docker or npx, pass them with `-e VAR=value` flags or through a `.env` file referenced by Docker Compose.
+</Info>
+
+## Default Login Credentials
+
+Regardless of installation method, QA Flow seeds the database with a default administrator account on first run:
+
+| Field | Value |
+|---|---|
+| Email | `admin@qaflow.com` |
+| Password | `admin123` |
+
+<Warning>
+  Change the default admin password and set a strong `JWT_SECRET` before deploying QA Flow on any server accessible outside of localhost. The default credentials are public knowledge and must not be used in production.
+</Warning>

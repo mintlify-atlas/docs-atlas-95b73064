@@ -1,0 +1,211 @@
+---
+title: "Contributing to QA Flow: Guidelines and Git Flow"
+sidebarTitle: "Guidelines"
+description: "Learn how to contribute to QA Flow with conventional commits, the PR process, branching strategy, and the manual release workflow for collaborators."
+---
+
+QA Flow welcomes contributions of all kinds — from bug reports and feature ideas to documentation improvements and code changes. This page explains the branching strategy, commit message format, pull request process, and how releases are created. Reading it before opening your first PR will help your contribution land smoothly.
+
+## Ways to Contribute
+
+<CardGroup cols={3}>
+  <Card title="Report a Bug" icon="bug" href="https://github.com/davidG97/qa-flow/issues">
+    Open an issue using the Bug Report template. Check existing issues first to avoid duplicates, and include steps to reproduce, expected behaviour, and actual behaviour.
+  </Card>
+  <Card title="Request a Feature" icon="lightbulb" href="https://github.com/davidG97/qa-flow/issues">
+    Open an issue using the Feature Request template. Describe your use case and the behaviour you'd expect — this helps collaborators understand the value before implementation begins.
+  </Card>
+  <Card title="Submit Code" icon="code-pull-request" href="https://github.com/davidG97/qa-flow">
+    Find an open issue (or create one), comment to claim it, then follow the PR process below. All code contributions target the `main` branch.
+  </Card>
+</CardGroup>
+
+## Git Flow
+
+QA Flow uses a simplified fork-based flow where collaborators control all releases. Merging to `main` does **not** automatically trigger a release — all releases are created manually.
+
+```
+CONTRIBUTORS
+  Fork → feature/* → PR to main → Review → Merge
+                                     ↓
+COLLABORATORS
+  Review PRs → Merge to main → Manual Release (when ready)
+                                     ↓
+                     ┌───────────────┴───────────────┐
+                     ▼                               ▼
+              STABLE (v1.2.0)               BETA (v1.3.0-beta)
+              :latest tag                   :beta tag
+```
+
+<Info>
+  If you are a first-time contributor, comment on the issue you'd like to work on before starting. This prevents duplicate work and gives collaborators a chance to share any context that might affect your approach.
+</Info>
+
+## Conventional Commits
+
+QA Flow follows the [Conventional Commits](https://www.conventionalcommits.org/) specification. Every commit message must start with a type and an optional scope, followed by a short description:
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+### Commit Types
+
+| Type | Description |
+|---|---|
+| `feat` | A new feature |
+| `fix` | A bug fix |
+| `docs` | Documentation only changes |
+| `style` | Code style changes (formatting, semicolons, etc.) |
+| `refactor` | Code change that neither fixes a bug nor adds a feature |
+| `perf` | Performance improvement |
+| `test` | Adding or updating tests |
+| `chore` | Maintenance tasks |
+| `ci` | CI/CD changes |
+
+### Examples
+
+```
+feat(nodes): add new "Scroll" node type
+fix(executor): handle timeout errors gracefully
+docs(readme): update installation instructions
+refactor(api): simplify authentication middleware
+```
+
+<Tip>
+  Keep the description in the imperative mood ("add feature", not "added feature") and under 72 characters. If the change needs more explanation, add a body after a blank line.
+</Tip>
+
+## Pull Request Process
+
+<Steps>
+  <Step title="Create a branch from main">
+    Always branch from an up-to-date `main`. Pull the latest changes from upstream before creating your branch to minimise merge conflicts later.
+
+    ```bash
+    git checkout main
+    git pull upstream main
+    git checkout -b feat/your-feature-name
+    ```
+
+    Branch names should follow the pattern `<type>/<short-description>`, for example `feat/scroll-node`, `fix/timeout-handling`, or `docs/docker-guide`.
+  </Step>
+  <Step title="Make commits using the conventional format">
+    Make small, focused commits as you work. Each commit should represent one logical change and use the conventional commit format described above.
+
+    ```bash
+    git add .
+    git commit -m "feat(nodes): add scroll node with direction and distance config"
+    ```
+  </Step>
+  <Step title="Push to your fork">
+    Push your branch to your fork on GitHub. If you've been working for a while, rebase against upstream main first to keep your branch clean.
+
+    ```bash
+    git push origin feat/your-feature-name
+    ```
+  </Step>
+  <Step title="Open a Pull Request targeting main">
+    Open a PR from your fork's branch to `davidG97/qa-flow:main`. Fill in the PR template completely — describe what changed, why, and how to test it. Link any related issues using GitHub keywords (`Closes #123`, `Fixes #456`).
+  </Step>
+  <Step title="Address review feedback and wait for merge">
+    Collaborators will review your PR and may request changes. Push additional commits to your branch to address the feedback — do not force-push after review has started, as it makes the review history harder to follow. Once all feedback is addressed and CI passes, a collaborator will merge the PR.
+  </Step>
+</Steps>
+
+### PR Requirements Checklist
+
+Before marking your PR as ready for review, confirm that all of the following are true:
+
+- [ ] All CI checks pass
+- [ ] Code follows the style guidelines below
+- [ ] Tests have been added or updated where applicable
+- [ ] Documentation has been updated if the change affects user-facing behaviour
+- [ ] There are no merge conflicts with `main`
+
+## Release Process
+
+<Warning>
+  The release workflow is for **collaborators with repository write access only**. Merging a PR to `main` does not automatically publish a release. All releases are triggered manually.
+</Warning>
+
+Releases are created through GitHub Actions. Collaborators navigate to **Actions → Release → Run workflow** and choose two parameters:
+
+<Tabs>
+  <Tab title="Stable Release">
+    <Steps>
+      <Step title="Go to Actions → Release → Run workflow" />
+      <Step title="Select the version bump type">
+        Choose `patch`, `minor`, or `major` based on the nature of changes since the last release (see the version guide below).
+      </Step>
+      <Step title="Leave 'Create as beta' unchecked" />
+      <Step title="Click Run workflow" />
+    </Steps>
+
+    This publishes:
+    - A GitHub Release with an auto-generated changelog
+    - A Docker image tagged as `latest` and `X.Y.Z`
+    - An npm package at version `X.Y.Z`
+  </Tab>
+  <Tab title="Beta Release">
+    <Steps>
+      <Step title="Go to Actions → Release → Run workflow" />
+      <Step title="Select the version bump type" />
+      <Step title="Check ✅ 'Create as beta/prerelease'" />
+      <Step title="Click Run workflow" />
+    </Steps>
+
+    This publishes:
+    - A GitHub Pre-release tagged `vX.Y.Z-beta.N`
+    - A Docker image tagged as `beta` and `X.Y.Z-beta.N`
+    - An npm package at `qa-flow@beta` version `X.Y.Z-beta.N`
+  </Tab>
+</Tabs>
+
+### Version Bump Guide
+
+| Type | When to use | Example |
+|---|---|---|
+| `patch` | Bug fixes and small changes with no new features | `1.0.0 → 1.0.1` |
+| `minor` | New features that are backwards compatible | `1.0.1 → 1.1.0` |
+| `major` | Breaking changes to existing behaviour or APIs | `1.1.0 → 2.0.0` |
+
+## Style Guidelines
+
+Consistent code style makes the codebase easier to read and review. The following conventions are enforced or expected across the project:
+
+<Accordion title="TypeScript">
+  - Use TypeScript for all new code — no plain `.js` files in `src/` or `server/src/`
+  - Enable and respect strict mode (`"strict": true` in `tsconfig.json`)
+  - Prefer `interface` over `type` for describing object shapes
+  - Use meaningful, self-documenting variable names — avoid abbreviations
+  - Use `.js` extensions on local imports in the backend (`NodeNext` module resolution requires this even for `.ts` source files)
+</Accordion>
+
+<Accordion title="React (Frontend)">
+  - Use functional components with hooks — no class components
+  - Wrap node components in `memo()` to prevent unnecessary React Flow re-renders
+  - Keep components small and focused on a single responsibility
+  - Extract reusable stateful logic into custom hooks in `src/hooks/`
+  - Avoid prop drilling — use context or custom hooks for cross-component state
+</Accordion>
+
+<Accordion title="Backend (Express)">
+  - Follow the existing controller → service pattern: controllers handle HTTP parsing and response, services contain business logic
+  - Export singleton service objects rather than classes that callers must instantiate
+  - Keep route files thin — only `router.get(...)` and `router.post(...)` calls, no logic
+</Accordion>
+
+<Accordion title="CSS">
+  - Use CSS variables for all colours and spacing values — avoid hardcoded hex codes or pixel values
+  - Follow BEM-like naming conventions for class names (`.block__element--modifier`)
+  - Keep styles in module-level files co-located with their component
+</Accordion>
+
+## Code of Conduct
+
+This project is governed by the [Contributor Covenant Code of Conduct](https://github.com/davidG97/qa-flow/blob/main/CODE_OF_CONDUCT.md). All participants are expected to maintain a welcoming, respectful, and inclusive environment. Harassment, personal attacks, and discriminatory language are not tolerated in any community space — issues, PRs, discussions, or otherwise.

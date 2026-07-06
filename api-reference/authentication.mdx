@@ -1,0 +1,209 @@
+---
+title: "Authentication API: Register, Login, and Token Refresh"
+sidebarTitle: "Authentication"
+description: "Register users, log in to receive a JWT token, and fetch the current user profile. Pass the token as a Bearer header on all authenticated requests."
+---
+
+QA Flow uses JSON Web Tokens (JWT) for stateless authentication. There are three authentication endpoints: one to register a new account, one to exchange credentials for a token, and one to retrieve the profile of the currently logged-in user. Every other endpoint in the API requires a valid token passed in the `Authorization: Bearer <token>` header.
+
+---
+
+## POST /api/auth/register
+
+Register a new user account. On success, the newly created user object is returned along with a JWT so the client can begin making authenticated requests immediately.
+
+**Authentication required:** No
+
+### Request Body
+
+<ParamField body="email" type="string" required>
+  A valid, unique email address for the new account.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  The account password. Stored as a bcrypt hash — never in plaintext.
+</ParamField>
+
+<ParamField body="name" type="string">
+  An optional display name for the user.
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="string">
+  UUID of the newly created user.
+</ResponseField>
+
+<ResponseField name="email" type="string">
+  The registered email address.
+</ResponseField>
+
+<ResponseField name="name" type="string | null">
+  The user's display name, or `null` if not provided.
+</ResponseField>
+
+<ResponseField name="role" type="string">
+  Role assigned to the user. New accounts default to `USER`. Possible values: `USER`, `ADMIN`.
+</ResponseField>
+
+<ResponseField name="token" type="string">
+  A signed JWT for immediate use in authenticated requests.
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST http://localhost:3001/api/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "email": "jane@example.com",
+    "password": "s3cur3p@ss",
+    "name": "Jane Doe"
+  }'
+```
+
+```json Response 201
+{
+  "id": "d5e6f7a8-...",
+  "email": "jane@example.com",
+  "name": "Jane Doe",
+  "role": "USER",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+</CodeGroup>
+
+<Warning>
+  If `email` or `password` is missing from the body, the API returns `400 Bad Request` with `{ "error": "Email y contraseña son obligatorios" }`. If the email address is already registered, a `400` error is also returned.
+</Warning>
+
+---
+
+## POST /api/auth/login
+
+Authenticate with an email and password. Returns a JWT and a user summary object. Use the returned `token` value as the Bearer token for all subsequent authenticated requests.
+
+**Authentication required:** No
+
+### Request Body
+
+<ParamField body="email" type="string" required>
+  The email address of the account to authenticate.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  The account password.
+</ParamField>
+
+### Response
+
+<ResponseField name="token" type="string">
+  A signed JWT. Include this in the `Authorization: Bearer <token>` header for all authenticated requests.
+</ResponseField>
+
+<ResponseField name="user" type="object">
+  A summary of the authenticated user.
+
+  <Expandable title="user fields">
+    <ResponseField name="id" type="string">UUID of the user.</ResponseField>
+    <ResponseField name="email" type="string">The user's email address.</ResponseField>
+    <ResponseField name="name" type="string | null">The user's display name.</ResponseField>
+    <ResponseField name="role" type="string">Either `USER` or `ADMIN`.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST http://localhost:3001/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "email": "admin@qaflow.com",
+    "password": "admin123"
+  }'
+```
+
+```json Response 200
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": "a1b2c3d4-...",
+    "email": "admin@qaflow.com",
+    "name": "Admin",
+    "role": "ADMIN"
+  }
+}
+```
+</CodeGroup>
+
+<Note>
+  If credentials are invalid or the account does not exist, the API returns `401 Unauthorized` with `{ "error": "Error de inicio de sesión" }`. Both missing fields and incorrect passwords surface as a `401` to avoid user enumeration.
+</Note>
+
+---
+
+## GET /api/auth/me
+
+Retrieve the full profile of the currently authenticated user. This endpoint is useful for hydrating UI state on application load or verifying that a stored token is still valid.
+
+**Authentication required:** Yes (Bearer token)
+
+### Response
+
+<ResponseField name="id" type="string">
+  UUID of the authenticated user.
+</ResponseField>
+
+<ResponseField name="email" type="string">
+  The user's registered email address.
+</ResponseField>
+
+<ResponseField name="name" type="string | null">
+  The user's display name, or `null` if not set.
+</ResponseField>
+
+<ResponseField name="role" type="string">
+  The user's role: `USER` or `ADMIN`.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp of when the account was created.
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl http://localhost:3001/api/auth/me \
+  -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+```
+
+```json Response 200
+{
+  "id": "a1b2c3d4-...",
+  "email": "admin@qaflow.com",
+  "name": "Admin",
+  "role": "ADMIN",
+  "createdAt": "2024-01-15T10:30:00.000Z"
+}
+```
+</CodeGroup>
+
+<Tabs>
+  <Tab title="401 Unauthorized">
+    Returned when the `Authorization` header is missing or the token is invalid/expired.
+
+    ```json
+    { "error": "No autorizado: token requerido" }
+    ```
+
+    or
+
+    ```json
+    { "error": "No autorizado: token inválido o expirado" }
+    ```
+  </Tab>
+  <Tab title="404 Not Found">
+    Returned when the token is valid but the corresponding user record no longer exists in the database.
+
+    ```json
+    { "error": "Usuario no encontrado" }
+    ```
+  </Tab>
+</Tabs>

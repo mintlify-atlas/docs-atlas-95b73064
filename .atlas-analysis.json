@@ -1,0 +1,144 @@
+{
+  "projectType": "saas",
+  "projectName": "QA Flow",
+  "projectDescription": "A visual, no-code/low-code test automation editor that lets you design, run, and manage Playwright tests using an interactive node-based canvas.",
+  "theme": "palm",
+  "primaryColor": "#6366F1",
+  "lightColor": "#EEF2FF",
+  "darkColor": "#3730A3",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Using the Editor",
+            "pages": [
+              "editor/overview",
+              "editor/nodes",
+              "editor/selectors",
+              "editor/recording"
+            ]
+          },
+          {
+            "group": "Running Tests",
+            "pages": [
+              "running-tests/execution",
+              "running-tests/real-time-view",
+              "running-tests/reports"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/project-settings",
+              "configuration/environment-variables",
+              "configuration/database"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/docker",
+              "deployment/security"
+            ]
+          },
+          {
+            "group": "Contributing",
+            "pages": [
+              "contributing/development-setup",
+              "contributing/guidelines"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api-reference/overview"
+            ]
+          },
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api-reference/authentication",
+              "api-reference/projects",
+              "api-reference/execution",
+              "api-reference/test-runs",
+              "api-reference/recording",
+              "api-reference/reports"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Visual node-based canvas for designing automated tests (no code required)",
+    "Real-time test execution with integrated screencast via WebSocket/CDP",
+    "Playwright code generation from visual flows and interaction recording",
+    "30+ built-in node types: actions, assertions, control flow, and lifecycle hooks",
+    "Device emulation (mobile, tablet, desktop) with locale, timezone, and geolocation",
+    "Parallel test execution with configurable workers, retries, and timeouts",
+    "HTML test reports with screenshots and per-node results",
+    "Visual element picker for building CSS/XPath selectors interactively",
+    "JWT-based authentication with Admin and User roles",
+    "SQLite by default with Turso/libsql and PostgreSQL support",
+    "One-command launch via npx or Docker"
+  ],
+  "publicApiSurface": [
+    "POST /api/auth/register",
+    "POST /api/auth/login",
+    "GET /api/auth/me",
+    "GET /api/projects",
+    "POST /api/projects",
+    "GET /api/projects/:id",
+    "PUT /api/projects/:id",
+    "DELETE /api/projects/:id",
+    "GET /api/projects/:id/flow",
+    "POST /api/run",
+    "GET /api/status/:executionId",
+    "GET /api/executions",
+    "GET /api/test-runs",
+    "GET /api/test-runs/:id",
+    "GET /api/test-runs/project/:projectId",
+    "GET /api/test-runs/:id/report",
+    "POST /api/record/start",
+    "GET /api/record/status/:sessionId",
+    "POST /api/record/stop/:sessionId",
+    "GET /api/record/code/:sessionId",
+    "GET /api/record/nodes/:sessionId",
+    "POST /api/parse-code",
+    "GET /api/recordings",
+    "DELETE /api/recordings/:sessionId",
+    "POST /api/picker/start",
+    "POST /api/picker/interactive/start",
+    "POST /api/picker/interactive/select",
+    "POST /api/picker/interactive/scroll",
+    "POST /api/picker/cancel/:sessionId",
+    "GET /api/picker/status/:sessionId",
+    "GET /api/reports",
+    "GET /api/reports/:id",
+    "GET /api/reports/:id/html",
+    "GET /api/reports/:id/download",
+    "DELETE /api/reports/:id",
+    "POST /api/generate-code",
+    "GET /api/flows",
+    "GET /api/health",
+    "GET /api/users",
+    "POST /api/users",
+    "PUT /api/users/:id",
+    "DELETE /api/users/:id"
+  ]
+}

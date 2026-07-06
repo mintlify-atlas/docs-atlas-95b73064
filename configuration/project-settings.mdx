@@ -1,0 +1,157 @@
+---
+title: "Project Settings: Execution, Workers, and Timeouts"
+sidebarTitle: "Project Settings"
+description: "Configure each QA Flow project's execution mode, worker count, retry policy, action timeout, and failure limits from the project settings modal."
+---
+
+Every QA Flow project carries its own execution configuration, letting you tune how Playwright runs your tests without touching any code. These settings live inside the project settings modal and are stored as a JSON `config` field on the project record, so each project can have completely independent behaviour.
+
+## Opening Project Settings
+
+To open the settings modal, click the **⚙️ Settings** button in the top toolbar of the visual editor. The modal shows all configurable options for the currently open project. Changes are saved immediately to the project and take effect on the next test run.
+
+## Configuration Options
+
+The following table lists every field in `ProjectConfig` together with its type, default value, and purpose.
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `executionMode` | `'default' \| 'parallel' \| 'serial'` | `'default'` | Controls how Playwright schedules tests — default lets Playwright decide, parallel forces concurrent execution, serial enforces strict ordering |
+| `workers` | `number` | `4` | Number of parallel browser worker instances (range: 1–10) |
+| `retries` | `number` | `0` | How many times a failing test is retried before it is marked as failed |
+| `timeout` | `number` (ms) | `30000` | Maximum time in milliseconds allowed for each individual action |
+| `maxFailures` | `number` | `0` | Stop the entire run after this many test failures; `0` means no limit |
+| `cdpUrl` | `string` | `''` | Optional Chrome DevTools Protocol URL to attach to a running Chrome instance |
+
+## Execution Mode
+
+<CardGroup cols={3}>
+  <Card title="default" icon="wand-magic-sparkles">
+    Playwright decides how to schedule tests based on the runner's capabilities. The best starting point for most projects.
+  </Card>
+  <Card title="parallel" icon="bolt">
+    All tests run concurrently across the configured number of workers. Fastest option for large, independent test suites.
+  </Card>
+  <Card title="serial" icon="list-ol">
+    Tests execute one after another in the order they appear in the flow. Use this when tests share state or depend on each other's side effects.
+  </Card>
+</CardGroup>
+
+### Serial vs. Parallel — When to Choose Each
+
+<Tabs>
+  <Tab title="Use Serial When…">
+    - Tests share a single user session or database state (e.g., a checkout flow where each step must follow the previous one)
+    - A later test depends on data created by an earlier test
+    - You are running against an environment that cannot handle concurrent sessions
+    - Your test suite includes `beforeAll`/`afterAll` hooks that set up shared state
+
+    ```
+    [Login] → [Add to Cart] → [Checkout] → [Confirm Order]
+    ```
+
+    With `serial` mode, each node runs only after the previous one completes successfully, guaranteeing correct ordering.
+  </Tab>
+  <Tab title="Use Parallel When…">
+    - Each test flow starts from a clean state (fresh navigation, independent credentials)
+    - You want the fastest possible feedback on a large regression suite
+    - Tests target different pages or independent features with no shared data
+
+    ```
+    [Login Flow]       ─┐
+    [Signup Flow]       ├─ run concurrently across workers
+    [Password Reset]   ─┘
+    ```
+
+    Combine `parallel` with a suitable `workers` count to balance speed against resource usage.
+  </Tab>
+</Tabs>
+
+## Workers
+
+The `workers` setting controls how many Playwright browser processes run simultaneously. The valid range is **1–10**.
+
+<Tip>
+  Start with the default of `4` workers and increase only if your test environment can sustain the load. On a typical CI runner (2 vCPUs / 4 GB RAM), values above `4` often slow things down due to resource contention rather than speeding them up. For local development, `2` workers is usually plenty.
+</Tip>
+
+- **1 worker** — effectively serial execution; useful for debugging flaky tests
+- **4 workers** (default) — good balance for most CI environments
+- **8–10 workers** — suitable for large suites on high-memory machines or cloud runners
+
+## Retries
+
+Setting `retries` to a value greater than `0` tells Playwright to re-run a test that fails, up to that many additional times, before recording a final failure. This is useful for tests that occasionally fail due to network jitter or animation timing.
+
+<Note>
+  Retries are distinct from fixing flaky tests — they mask instability rather than resolve it. Use retries as a short-term safety net, but investigate the root cause of any test that consistently requires them.
+</Note>
+
+A value of `1` means Playwright tries each failing test once more. A value of `2` means up to two extra attempts, and so on.
+
+## Action Timeout
+
+The `timeout` field sets the maximum number of milliseconds that any single Playwright action (click, fill, assertion, etc.) may take before it throws a timeout error.
+
+<Tip>
+  The default of **30 000 ms (30 s)** is appropriate for most applications on a fast network. If you are testing against a slow staging environment or a network-throttled scenario, consider raising this to **60 000 ms (60 s)**. Avoid setting it above 120 s — very long timeouts hide performance regressions and slow down failure detection.
+</Tip>
+
+Individual nodes in the flow can also override this value in their own **Timeout** field, which takes precedence over the project-level setting for that specific action.
+
+## Max Failures
+
+The `maxFailures` setting instructs QA Flow to abort the entire test run once a certain number of tests have failed.
+
+| Value | Behaviour |
+|---|---|
+| `0` (default) | Run all tests regardless of how many fail |
+| `1` | Stop immediately after the first failure |
+| `N` | Stop after N cumulative failures |
+
+This is particularly useful in CI pipelines where you want fast feedback: setting `maxFailures: 1` or `maxFailures: 5` prevents wasting time and resources running hundreds of remaining tests when a critical early failure has already broken the build.
+
+## CDP URL (Remote Browser)
+
+The `cdpUrl` field accepts a Chrome DevTools Protocol endpoint, for example `http://localhost:9222`. When provided, QA Flow connects to that running Chrome instance instead of launching a new headless browser.
+
+<Steps>
+  <Step title="Launch Chrome with Remote Debugging">
+    Start Chrome on your machine with the remote debugging port open.
+
+    <Tabs>
+      <Tab title="macOS">
+        ```bash
+        /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
+          --remote-debugging-port=9222
+        ```
+      </Tab>
+      <Tab title="Windows">
+        ```cmd
+        "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222
+        ```
+      </Tab>
+      <Tab title="Linux">
+        ```bash
+        google-chrome --remote-debugging-port=9222
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+  <Step title="Set CDP URL in Project Settings">
+    Open the ⚙️ Settings modal and enter the CDP URL:
+
+    ```
+    http://localhost:9222
+    ```
+
+    If QA Flow is running inside Docker and Chrome is on the host machine, use `http://host.docker.internal:9222` on Windows/macOS or your host IP on Linux.
+  </Step>
+  <Step title="Run Your Tests">
+    Execute the test flow normally. The browser window on your desktop will reflect every action in real time, making this mode ideal for debugging selector issues during development.
+  </Step>
+</Steps>
+
+<Note>
+  The integrated screencast panel already gives you a live view of the headless browser during every run — you do not need CDP configured for that. The `cdpUrl` setting is specifically for attaching to a **visible** Chrome window on your machine or a remote host.
+</Note>

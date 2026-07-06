@@ -1,0 +1,153 @@
+---
+title: "Set Up QA Flow for Local Development"
+sidebarTitle: "Dev Setup"
+description: "Clone QA Flow, install dependencies with pnpm, configure the database, and start the development server with hot reload for frontend and backend."
+---
+
+QA Flow is a monorepo with a React + Vite frontend, an Express backend, and a CLI package — all managed with `pnpm` workspaces. The development server starts both the frontend (port `3000`) and the backend (port `3001`) concurrently with hot-reload enabled for both, so you can iterate quickly without rebuilding manually.
+
+## Prerequisites
+
+Before you begin, make sure the following tools are installed on your machine:
+
+<CardGroup cols={2}>
+  <Card title="Node.js 18+" icon="node-js">
+    Required for running the development servers and build tools. Download from [nodejs.org](https://nodejs.org/) or use a version manager like `nvm`.
+  </Card>
+  <Card title="pnpm" icon="box">
+    The package manager used across the monorepo. Install globally with `npm install -g pnpm`.
+  </Card>
+  <Card title="Git" icon="code-branch">
+    Required for cloning the repository and following the contribution workflow.
+  </Card>
+  <Card title="Docker (optional)" icon="docker">
+    Not required for local development, but useful for testing the production container image locally using `docker-compose.dev.yml`.
+  </Card>
+</CardGroup>
+
+## Setup Steps
+
+<Steps>
+  <Step title="Fork and clone the repository">
+    Fork the [qa-flow repository](https://github.com/davidG97/qa-flow) on GitHub, then clone your fork locally. Adding the upstream remote lets you pull in future changes from the main repository.
+
+    ```bash
+    git clone https://github.com/YOUR_USERNAME/qa-flow.git
+    cd qa-flow
+    git remote add upstream https://github.com/davidG97/qa-flow.git
+    ```
+  </Step>
+  <Step title="Install dependencies">
+    Install all workspace dependencies with `pnpm`. The `approve-builds` step is required to approve native module build scripts — press `a` to select all, then `y` to confirm.
+
+    ```bash
+    pnpm install
+    pnpm approve-builds  # Select all with 'a', confirm with 'y'
+    ```
+
+    <Note>
+      The `approve-builds` prompt appears because packages like Playwright include post-install scripts that compile native binaries. You only need to run this once after the initial install or after adding new dependencies.
+    </Note>
+  </Step>
+  <Step title="Configure the database">
+    Copy the example environment file and run the database migrations. The `db:generate` command creates the type-safe Prisma client from the schema.
+
+    ```bash
+    cp server/.env.example server/.env
+    pnpm db:migrate
+    pnpm db:generate
+    ```
+
+    The default configuration in `.env.example` uses a local SQLite file at `server/data/qa-flow.db`. No additional database setup is required for local development.
+  </Step>
+  <Step title="Start the development server">
+    The `dev:all` script starts both the Vite dev server (frontend) and the Node.js Express server (backend) in a single terminal using `concurrently`.
+
+    ```bash
+    pnpm dev:all  # Starts frontend (port 3000) + backend (port 3001)
+    ```
+
+    Both servers support hot-reload. Frontend changes are reflected instantly in the browser; backend changes restart the Express server automatically.
+  </Step>
+  <Step title="Open the application">
+    Navigate to **http://localhost:3000** in your browser. The frontend at port `3000` proxies API requests to the backend at port `3001` automatically — you don't need to open port `3001` directly during development.
+
+    Log in with the default development credentials: `admin@qaflow.com` / `admin123`.
+  </Step>
+</Steps>
+
+## Project Structure
+
+Understanding where things live helps you navigate the codebase quickly. QA Flow is organised into three main areas: the React frontend (`src/`), the Express backend (`server/`), and the npx launcher CLI (`packages/cli/`).
+
+```
+qa-flow/
+├── src/                 # Frontend (React + Vite)
+│   ├── components/      # UI components
+│   ├── hooks/           # Custom React hooks
+│   ├── pages/           # Route pages
+│   ├── services/        # API client
+│   ├── types/           # TypeScript types
+│   └── utils/           # Utilities
+├── server/              # Backend (Express)
+│   ├── src/
+│   │   ├── controllers/ # HTTP handlers
+│   │   ├── services/    # Business logic
+│   │   ├── routes/      # API routes
+│   │   └── middleware/  # Express middleware
+│   └── prisma/          # Database schema
+└── packages/
+    └── cli/             # npx launcher (bin/cli.js)
+```
+
+<Accordion title="Frontend architecture details">
+  The frontend is built with React and Vite. The canvas editor is powered by React Flow, with each node type implemented as a memoised functional component in `src/components/`. State management for the test graph lives in custom hooks under `src/hooks/`. API calls are centralised in `src/services/` so the rest of the app stays free of `fetch` calls.
+</Accordion>
+
+<Accordion title="Backend architecture details">
+  The backend is an Express application written in TypeScript. Each API resource has a corresponding controller in `src/controllers/` (HTTP layer) and a service in `src/services/` (business logic). Routes are registered in `src/routes/`. Prisma ORM handles all database access; the schema lives at `server/prisma/schema.prisma`.
+</Accordion>
+
+## Available Scripts
+
+All scripts are run from the repository root using `pnpm`:
+
+| Script | Description |
+|---|---|
+| `pnpm dev:all` | Start frontend (port 3000) and backend (port 3001) concurrently |
+| `pnpm dev` | Start frontend only (port 3000) |
+| `pnpm server` | Start backend only (port 3001) |
+| `pnpm build:all` | Build all packages for production |
+| `pnpm test` | Run the test suite |
+| `pnpm db:migrate` | Apply pending database migrations |
+| `pnpm db:generate` | Regenerate the Prisma client after schema changes |
+| `pnpm db:studio` | Open Prisma Studio — a visual GUI for browsing the database |
+
+<Tip>
+  Use `pnpm db:studio` while developing to inspect and edit database records directly without writing SQL. It opens at **http://localhost:5555** by default and reflects your current schema automatically.
+</Tip>
+
+## Database Commands Reference
+
+```bash
+pnpm db:generate          # Generate Prisma client
+pnpm db:migrate           # Run migrations
+pnpm db:studio            # Open Prisma Studio (GUI)
+pnpm --filter qa-flow-server db:reset  # Reset and reseed the development database
+```
+
+## Need Help?
+
+If you run into problems during setup, check these resources:
+
+<CardGroup cols={3}>
+  <Card title="GitHub Discussions" icon="comments" href="https://github.com/davidG97/qa-flow/discussions">
+    Ask questions and share ideas with the community.
+  </Card>
+  <Card title="Issue Tracker" icon="circle-exclamation" href="https://github.com/davidG97/qa-flow/issues">
+    Search for known issues or file a new bug report.
+  </Card>
+  <Card title="Contributing Guidelines" icon="book" href="/contributing/guidelines">
+    Read the full contribution guide before opening your first PR.
+  </Card>
+</CardGroup>

@@ -1,0 +1,178 @@
+---
+title: "Secure QA Flow for Production Deployments"
+sidebarTitle: "Security"
+description: "Configure JWT secrets, change default credentials, enforce HTTPS, and understand QA Flow's role-based access control before going to production."
+---
+
+QA Flow ships with sensible defaults that make local development frictionless, but those defaults are intentionally insecure and must be replaced before you expose the application to any network outside your own machine. This page walks through every security configuration step, explains the authentication model, and provides example reverse proxy configuration for TLS termination.
+
+## Pre-Deployment Checklist
+
+Work through these steps in order before opening QA Flow to any users or networks beyond localhost:
+
+<Steps>
+  <Step title="Set a strong JWT_SECRET">
+    Generate a cryptographically random string of at least 32 characters and set it as the `JWT_SECRET` environment variable. The default value (`change-me-in-production`) is publicly known and must never be used outside a local development environment.
+
+    ```bash
+    openssl rand -base64 32
+    ```
+
+    Or with Node.js:
+
+    ```js
+    require('crypto').randomBytes(32).toString('base64')
+    ```
+
+    Copy the output and set it in your environment or `.env` file:
+
+    ```env
+    JWT_SECRET=<paste-output-here>
+    ```
+  </Step>
+  <Step title="Change the default admin credentials">
+    The default admin account (`admin@qaflow.com` / `admin123`) is created automatically on first run. Log in immediately after deployment and change both the email address and password from the account settings. Do not skip this step — leaving the defaults in place is the single most common cause of unauthorised access.
+  </Step>
+  <Step title="Configure HTTPS with a reverse proxy">
+    QA Flow does not terminate TLS itself. Place a reverse proxy such as nginx, Caddy, or Traefik in front of it to handle HTTPS. See the [nginx example](#reverse-proxy-with-nginx) below. Never serve QA Flow over plain HTTP on a public network.
+  </Step>
+  <Step title="Restrict network access">
+    Bind port `3001` only to `localhost` or a private network interface. Use firewall rules or your cloud provider's security groups to block direct public access to the port. All external traffic should flow through your reverse proxy over HTTPS.
+
+    ```bash
+    # Bind only to loopback — the reverse proxy connects locally
+    docker run -p 127.0.0.1:3001:3001 davidg1997/qa-flow
+    ```
+  </Step>
+  <Step title="Use a durable, backed-up database">
+    The default SQLite database stored in a Docker volume is convenient for development but should not be your only copy of data in production. Use [Turso](https://turso.tech/) for a managed libsql cloud database, or connect to a PostgreSQL instance with regular backups using the `docker-compose.prod.yml` overlay. See the [Docker deployment guide](/deployment/docker) for configuration details.
+  </Step>
+</Steps>
+
+## JWT Authentication
+
+Every QA Flow API endpoint except `/api/auth/login` and `/api/auth/register` requires a valid JSON Web Token. Tokens are issued by the login endpoint and must be included in the `Authorization` header of every subsequent request.
+
+**Obtain a token:**
+
+```bash
+curl -X POST http://localhost:3001/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@qaflow.com", "password": "admin123"}'
+```
+
+**Use the token:**
+
+```
+Authorization: Bearer <jwt_token>
+```
+
+```bash
+curl http://localhost:3001/api/projects \
+  -H "Authorization: Bearer <jwt_token>"
+```
+
+Tokens are signed with `JWT_SECRET` using a symmetric algorithm. If you rotate `JWT_SECRET`, all existing tokens are immediately invalidated and all users must log in again.
+
+<Warning>
+  A weak or default `JWT_SECRET` allows an attacker to forge valid tokens for any user, including the admin account, without knowing any credentials. Always generate a random secret of at least 32 characters and keep it private.
+</Warning>
+
+## Role-Based Access Control
+
+QA Flow enforces a two-level permission model: a system-level user role and a project-level membership role.
+
+<CardGroup cols={2}>
+  <Card title="ADMIN" icon="shield-halved">
+    Full system access. Can list and manage all users, access every project regardless of membership, and create or delete any resource. Assign this role only to trusted operators.
+  </Card>
+  <Card title="USER" icon="user">
+    Standard account. Can only access projects where they hold an explicit `ProjectMember` record. Cannot see or interact with other users' projects.
+  </Card>
+</CardGroup>
+
+### Project Membership Roles
+
+Within a project, access is governed by the `ProjectMember` role:
+
+| Role | Permissions |
+|---|---|
+| `OWNER` | Full control — edit flow, manage members, delete project |
+| `MEMBER` | Read and execute — can view the canvas and run tests, but cannot modify the flow or manage members |
+
+Users receive the `OWNER` role automatically when they create a project. Additional members can be invited and assigned either role by any existing `OWNER` on the project.
+
+## Generating a Secure JWT_SECRET
+
+<Tabs>
+  <Tab title="openssl">
+    ```bash
+    openssl rand -base64 32
+    ```
+  </Tab>
+  <Tab title="Node.js">
+    ```js
+    require('crypto').randomBytes(32).toString('base64')
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import secrets, base64
+    print(base64.b64encode(secrets.token_bytes(32)).decode())
+    ```
+  </Tab>
+</Tabs>
+
+Store the resulting string in a secrets manager (AWS Secrets Manager, HashiCorp Vault, GitHub Actions secrets, etc.) rather than committing it to source control.
+
+## Reverse Proxy with nginx
+
+The following nginx configuration terminates TLS and proxies requests to QA Flow running on `localhost:3001`. The `Upgrade` and `Connection` headers are forwarded to support the WebSocket connections used for real-time test execution streaming.
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name qa-flow.example.com;
+
+    ssl_certificate     /etc/ssl/certs/qa-flow.crt;
+    ssl_certificate_key /etc/ssl/private/qa-flow.key;
+
+    location / {
+        proxy_pass http://localhost:3001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+
+server {
+    listen 80;
+    server_name qa-flow.example.com;
+    return 301 https://$host$request_uri;
+}
+```
+
+<Tip>
+  [Caddy](https://caddyserver.com/) is an alternative to nginx that provisions and renews Let's Encrypt certificates automatically. A complete Caddy configuration for QA Flow is just three lines: `qa-flow.example.com { reverse_proxy localhost:3001 }`.
+</Tip>
+
+## Vulnerability Reporting
+
+If you discover a security vulnerability in QA Flow, please report it responsibly — do **not** open a public GitHub issue.
+
+<CardGroup cols={2}>
+  <Card title="GitHub Security Advisories" icon="github" href="https://github.com/davidG97/qa-flow/security/advisories">
+    Preferred method. Go to the Security tab in the repository and click "Report a vulnerability" to submit a private advisory.
+  </Card>
+  <Card title="Response Timeline" icon="clock">
+    Initial response within 48 hours, status update within 7 days, and a resolution target of 30 days depending on severity.
+  </Card>
+</CardGroup>
+
+<Warning>
+  **Never expose port 3001 directly to the public internet without TLS.** QA Flow transmits authentication tokens and test data over its API. Without HTTPS, these are visible to anyone on the network path between the client and the server.
+</Warning>

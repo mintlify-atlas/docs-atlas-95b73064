@@ -1,0 +1,161 @@
+---
+title: "QA Flow REST API: Base URL, Auth, and Conventions"
+sidebarTitle: "Overview"
+description: "QA Flow exposes a REST API on port 3001. All endpoints except login and register require a Bearer JWT token in the Authorization header."
+---
+
+QA Flow's REST API gives you programmatic control over every aspect of the platform — creating and managing test projects, triggering Playwright executions, recording new test flows, inspecting results, and downloading reports. The API follows standard REST conventions: resources are JSON objects, HTTP verbs map to CRUD operations, and errors are returned as `{ "error": "..." }` JSON objects with an appropriate status code.
+
+## Base URL
+
+All endpoints are mounted under the `/api` prefix on port `3001`.
+
+```
+http://localhost:3001/api
+```
+
+For production deployments, replace `http://localhost:3001` with your deployed host (e.g. `https://qaflow.example.com`).
+
+## Authentication
+
+QA Flow uses **JWT Bearer tokens** for authentication. Every request — except `POST /api/auth/login` and `POST /api/auth/register` — must include the token in an `Authorization` header:
+
+```
+Authorization: Bearer <token>
+```
+
+Obtain a token by logging in:
+
+```bash
+curl -X POST http://localhost:3001/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email": "admin@qaflow.com", "password": "admin123"}'
+```
+
+**Response:**
+
+```json
+{ "token": "eyJ..." }
+```
+
+Store this token and pass it on every subsequent request. Tokens are verified by the `requireAuth` middleware; an invalid or expired token returns `401 Unauthorized`.
+
+<Note>
+  Admin-only endpoints additionally require the `requireAdmin` middleware. Requests from non-admin users return `403 Forbidden` with `{ "error": "Prohibido: se requiere rol de administrador" }`.
+</Note>
+
+## Request Format
+
+All requests that include a body must set the `Content-Type` header:
+
+```
+Content-Type: application/json
+```
+
+Request bodies are parsed as JSON. Sending an incorrectly formatted body or omitting required fields returns `400 Bad Request`.
+
+## Common Response Codes
+
+| Code | Meaning |
+|------|---------|
+| `200 OK` | Request succeeded; body contains the resource or result |
+| `201 Created` | Resource was created; body contains the new object |
+| `204 No Content` | Request succeeded; no response body (e.g. DELETE) |
+| `400 Bad Request` | Missing or invalid request parameters |
+| `401 Unauthorized` | Missing, invalid, or expired Bearer token |
+| `403 Forbidden` | Authenticated but insufficient permissions (non-admin) |
+| `404 Not Found` | The requested resource does not exist |
+| `500 Internal Server Error` | Unexpected server-side error |
+
+## Endpoint Index
+
+Below is a complete index of every API endpoint, grouped by resource.
+
+### Auth — `/api/auth`
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/auth/register` | No | Register a new user account |
+| `POST` | `/auth/login` | No | Log in and receive a JWT token |
+| `GET` | `/auth/me` | Yes | Get the currently authenticated user |
+
+### Projects — `/api/projects`
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/projects` | Yes | List all projects (admin sees all; users see own) |
+| `POST` | `/projects` | Yes | Create a new project |
+| `GET` | `/projects/:id` | Yes | Get a single project by ID |
+| `PUT` | `/projects/:id` | Yes | Update a project (owner or admin) |
+| `DELETE` | `/projects/:id` | Yes | Delete a project (owner or admin) |
+| `GET` | `/projects/:id/flow` | Yes | Get the project as a TestFlow object |
+
+### Execution — `/api`
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/run` | Yes | Trigger a test execution for a project |
+| `GET` | `/status/:executionId` | Yes | Poll status of a running/completed execution |
+| `GET` | `/executions` | Yes | List all past executions |
+
+### Test Runs — `/api/test-runs`
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/test-runs` | Yes | List recent test runs (default limit 20) |
+| `GET` | `/test-runs/:id` | Yes | Get a specific test run with results |
+| `GET` | `/test-runs/project/:projectId` | Yes | Get test runs for a project (default limit 10) |
+| `GET` | `/test-runs/:id/report` | Yes | Get HTML or JSON report for a run |
+
+### Recording — `/api`
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/record/start` | Yes | Start a Playwright Codegen recording session |
+| `GET` | `/record/status/:sessionId` | Yes | Check recording session status |
+| `POST` | `/record/stop/:sessionId` | Yes | Stop a recording session |
+| `GET` | `/record/code/:sessionId` | Yes | Get raw recorded Playwright TypeScript code |
+| `GET` | `/record/nodes/:sessionId` | Yes | Get recorded interactions as QA Flow nodes |
+| `POST` | `/parse-code` | Yes | Parse Playwright TypeScript code into nodes |
+| `GET` | `/recordings` | Yes | List all recording sessions |
+| `DELETE` | `/recordings/:sessionId` | Yes | Delete a specific recording session |
+| `DELETE` | `/recordings` | Yes | Delete all recording sessions |
+| `POST` | `/recordings/cleanup` | Yes | Clean up stale or orphaned sessions |
+
+### Picker — `/api/picker`
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/picker/start` | Yes | Start a visual element picker session |
+| `POST` | `/picker/interactive/start` | Yes | Start an interactive picker (Docker-compatible) |
+| `POST` | `/picker/interactive/select` | Yes | Select an element by coordinates |
+| `POST` | `/picker/interactive/scroll` | Yes | Scroll within an interactive picker session |
+| `POST` | `/picker/cancel/:sessionId` | Yes | Cancel a picker session |
+| `GET` | `/picker/status/:sessionId` | Yes | Get picker session status |
+
+### Reports — `/api/reports`
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/reports` | Yes | List all generated HTML reports |
+| `GET` | `/reports/:id` | Yes | Get report JSON metadata and summary |
+| `GET` | `/reports/:id/html` | Yes | Render report as HTML in the browser |
+| `GET` | `/reports/:id/download` | Yes | Download the report HTML as a file |
+| `DELETE` | `/reports/:id` | Yes | Delete a report |
+
+### Code — `/api`
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/generate-code` | Yes | Generate Playwright TypeScript code from a flow |
+| `POST` | `/flows` | Yes | Save a flow definition |
+| `GET` | `/health` | No | Health check |
+
+### Users (Admin Only) — `/api/users`
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/users` | Admin | List all users |
+| `POST` | `/users` | Admin | Create a new user |
+| `PUT` | `/users/:id` | Admin or Self | Update a user |
+| `DELETE` | `/users/:id` | Admin | Delete a user |

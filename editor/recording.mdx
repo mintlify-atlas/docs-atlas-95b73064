@@ -1,0 +1,214 @@
+---
+title: "Record Browser Interactions and Import as Nodes"
+sidebarTitle: "Recording"
+description: "Use QA Flow's Playwright Codegen recording feature to capture real browser interactions and automatically convert them into flow nodes."
+---
+
+QA Flow's recording feature integrates Playwright Codegen to let you capture real browser interactions and convert them directly into nodes on your canvas. Instead of building a flow node by node from scratch, you click through your application naturally, and QA Flow translates each interaction — navigations, clicks, form fills, and more — into the equivalent QA Flow nodes that you can review, edit, and drop into any existing flow.
+
+## How Recording Works
+
+When you start a recording session, QA Flow launches a Playwright Codegen browser process. Every action you perform in that browser — clicking a button, filling a form, navigating to a new page — is captured by Codegen in real time. When you stop the session, QA Flow parses the generated Playwright TypeScript code and maps each statement to its corresponding QA Flow node type, complete with selectors and configuration values pre-filled.
+
+The converted nodes are then displayed in a review panel, where you can inspect them before importing them into your canvas. Once imported, nodes behave exactly like hand-built nodes — they can be reconnected, reconfigured, and combined with other nodes freely.
+
+<Note>
+  Recording uses Playwright Codegen, which opens a visible Chromium browser. A graphical display is required on the machine running the QA Flow server. In headless Docker environments without a display, configure a `CDP_URL` pointing to a Chrome instance with remote debugging enabled, or use a virtual display (Xvfb). See the project settings for CDP configuration options.
+</Note>
+
+---
+
+## Recording API Endpoints
+
+QA Flow exposes a set of REST API endpoints that the editor uses internally to manage recording sessions. You can also call these directly for automation or integration purposes.
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/record/start` | Start a new Codegen recording session |
+| `GET` | `/api/record/status/:sessionId` | Check the status of a running session |
+| `POST` | `/api/record/stop/:sessionId` | Stop a recording session |
+| `GET` | `/api/record/code/:sessionId` | Retrieve the raw Playwright TypeScript code captured so far |
+| `GET` | `/api/record/nodes/:sessionId` | Convert the captured code into QA Flow nodes and edges |
+| `POST` | `/api/parse-code` | Parse existing Playwright TypeScript code and return nodes |
+| `GET` | `/api/recordings` | List all recording sessions |
+| `DELETE` | `/api/recordings/:sessionId` | Delete a specific recording session |
+| `DELETE` | `/api/recordings` | Delete all recording sessions |
+| `POST` | `/api/recordings/cleanup` | Remove recordings older than a configurable age |
+
+### Starting a Session
+
+Send a `POST` request to `/api/record/start` with an optional starting URL. The server responds with a `sessionId` that you use for all subsequent calls.
+
+```http
+POST /api/record/start
+Content-Type: application/json
+
+{
+  "url": "https://your-app.example.com/login"
+}
+```
+
+```json
+{
+  "sessionId": "rec_a1b2c3d4",
+  "status": "recording"
+}
+```
+
+### Checking Status
+
+Poll the session status while the recording is in progress:
+
+```http
+GET /api/record/status/rec_a1b2c3d4
+```
+
+```json
+{
+  "id": "rec_a1b2c3d4",
+  "status": "recording",
+  "startedAt": "2024-11-15T10:30:00.000Z",
+  "completedAt": null,
+  "hasCode": false,
+  "error": null
+}
+```
+
+Possible `status` values: `recording`, `stopped`, `error`.
+
+### Stopping and Retrieving Nodes
+
+Stop the session, then fetch the parsed nodes:
+
+```http
+POST /api/record/stop/rec_a1b2c3d4
+```
+
+```http
+GET /api/record/nodes/rec_a1b2c3d4
+```
+
+```json
+{
+  "nodes": [
+    {
+      "id": "node_1",
+      "type": "navigate",
+      "data": { "url": "/login", "waitUntil": "load" }
+    },
+    {
+      "id": "node_2",
+      "type": "fill",
+      "data": { "selector": "input[name='email']", "value": "user@example.com" }
+    }
+  ],
+  "edges": [
+    { "id": "e1-2", "source": "node_1", "target": "node_2" }
+  ],
+  "code": "await page.goto('/login');\nawait page.fill('input[name=\\'email\\']', 'user@example.com');\n"
+}
+```
+
+---
+
+## Parsing Existing Playwright Code
+
+If you already have Playwright TypeScript test code — from another project, migrated from a different tool, or written by hand — you can paste it directly into QA Flow and convert it to nodes without recording anything.
+
+Send the code to `POST /api/parse-code`:
+
+```http
+POST /api/parse-code
+Content-Type: application/json
+
+{
+  "code": "await page.goto('https://example.com');\nawait page.click('#submit');\nawait expect(page).toHaveURL('/dashboard');"
+}
+```
+
+```json
+{
+  "nodes": [
+    { "id": "node_1", "type": "navigate", "data": { "url": "https://example.com" } },
+    { "id": "node_2", "type": "click", "data": { "selector": "#submit" } },
+    { "id": "node_3", "type": "assertUrl", "data": { "expectedUrl": "/dashboard", "matchType": "exact" } }
+  ],
+  "edges": [
+    { "id": "e1-2", "source": "node_1", "target": "node_2" },
+    { "id": "e2-3", "source": "node_2", "target": "node_3" }
+  ]
+}
+```
+
+---
+
+## Step-by-Step Recording Workflow
+
+<Steps>
+  <Step title="Click Record in the toolbar">
+    Open your project in the QA Flow editor and click the **Record** button in the toolbar. A dialog appears where you can optionally enter a starting URL. Click **Start Recording** to confirm.
+  </Step>
+  <Step title="Interact with your application">
+    A Chromium browser window opens (or the interactive screencast panel activates in Docker). Navigate to the pages you want to test and perform the actions you want to capture: click buttons, fill forms, navigate between pages. Every interaction is captured in real time.
+  </Step>
+  <Step title="Click Stop Recording">
+    When you have captured all the steps you need, return to QA Flow and click **Stop Recording**. The browser session ends and the captured Playwright code is sent to the parser.
+  </Step>
+  <Step title="Review the generated nodes">
+    The editor displays the converted nodes in a review panel. Each node shows its type, the captured selector or value, and all pre-filled fields. Inspect the nodes to verify they match your intentions — adjust any selector or value that looks incorrect.
+  </Step>
+  <Step title="Import into your canvas">
+    Click **Import Nodes** to add the reviewed nodes to your canvas. They are connected in sequence and positioned automatically. You can then wire them into your existing flow, add assertion nodes, or rearrange them freely.
+  </Step>
+</Steps>
+
+---
+
+## Managing Recordings
+
+Completed recording sessions are stored on the server until you delete them. Use the recordings management API to keep things tidy.
+
+<CodeGroup>
+```http List recordings
+GET /api/recordings
+```
+
+```http Delete one recording
+DELETE /api/recordings/rec_a1b2c3d4
+```
+
+```http Delete all recordings
+DELETE /api/recordings
+```
+
+```http Clean up old recordings
+POST /api/recordings/cleanup
+Content-Type: application/json
+
+{
+  "maxAgeHours": 24
+}
+```
+</CodeGroup>
+
+The cleanup endpoint accepts a `maxAgeHours` value (default: `24`) and deletes any recording session older than that threshold. Call it on a schedule to prevent unbounded disk growth on long-running QA Flow instances.
+
+---
+
+## Tips and Limitations
+
+<Tip>
+  After importing recorded nodes, review each selector and replace any fragile selectors (nth-child, generated class names) with stable `data-testid` or ARIA role selectors. The Selectors page has a full guide on choosing durable selectors.
+</Tip>
+
+<Tip>
+  Use the **Parse Code** feature to migrate existing Playwright test files. Paste a test block, import the nodes, and you instantly have a visual representation of your existing code that you can extend in QA Flow.
+</Tip>
+
+<Warning>
+  Recorded sessions capture selectors as Playwright Codegen sees them at record time. If your application uses dynamically generated IDs or class names, those selectors may be fragile. Always review and stabilize recorded selectors before committing your flow.
+</Warning>
+
+<Note>
+  In headless Docker environments without a display (no Xvfb), recording via Playwright Codegen requires a remote Chrome instance connected via the **CDP URL** setting. Configure `CDP_URL` in your project settings or via the `CDP_URL` environment variable to point to a Chrome instance started with `--remote-debugging-port=9222`.
+</Note>

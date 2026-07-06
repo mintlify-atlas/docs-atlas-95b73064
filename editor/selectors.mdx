@@ -1,0 +1,189 @@
+---
+title: "Building Selectors with the Visual Element Picker"
+sidebarTitle: "Selectors"
+description: "Use QA Flow's visual picker to select elements directly in the browser, or write CSS and XPath selectors manually for any action or assertion node."
+---
+
+Every action and assertion node in QA Flow that interacts with a page element requires a **selector** — a string that tells Playwright which DOM element to target. QA Flow gives you two ways to build selectors: a visual point-and-click element picker that drives a real browser, and a manual text field where you type a selector directly. Both approaches produce the same result — a selector string stored on the node field.
+
+## Two Ways to Pick Selectors
+
+<CardGroup cols={2}>
+  <Card title="Visual Picker" icon="crosshairs">
+    Opens a browser window, executes all preceding nodes to reproduce the exact page state you need, then lets you click any element to capture its selector automatically. No selector syntax knowledge required.
+  </Card>
+  <Card title="Manual Entry" icon="pencil">
+    Type a CSS selector, XPath expression, or Playwright-style locator directly into the selector field on any node. Best when you already know the stable attribute or role to target.
+  </Card>
+</CardGroup>
+
+---
+
+## Visual Picker (Local)
+
+The local visual picker opens a Chromium browser on your machine and uses the browser's native element inspection interface. Before presenting the picker, QA Flow automatically replays all nodes that come before the current one in the flow — so the browser is already on the correct page and in the right state when you click.
+
+**How it works internally:**
+
+QA Flow calls the picker API to start a session, which launches Chromium, navigates through the prior steps, and activates the native Playwright element picker overlay. When you click an element, the picker captures the selector and returns it to the editor.
+
+| API endpoint | Description |
+|---|---|
+| `POST /api/picker/start` | Start a local picker session; accepts the current node context and prior flow steps |
+| `GET /api/picker/status/:sessionId` | Poll the status of a picker session |
+| `POST /api/picker/cancel/:sessionId` | Cancel a running picker session |
+
+<Note>
+  The local picker requires a graphical display on the machine running the QA Flow server. In headless server or CI environments, use the Interactive Picker instead.
+</Note>
+
+---
+
+## Interactive Picker (Docker / Headless)
+
+The interactive picker works without a local GUI. Instead of opening a visible browser window, it captures frames from the headless Chromium process and streams them to the editor as a live screencast image. You click directly on the browser image inside QA Flow to select elements — no window manager needed.
+
+This mode is the default when QA Flow is running inside Docker or on a server without a display.
+
+**How it works internally:**
+
+<Steps>
+  <Step title="Start the interactive session">
+    The editor calls `POST /api/picker/interactive/start`, which launches a headless browser, replays all prior nodes, and begins streaming browser frames back to the UI via the CDP screencast protocol.
+  </Step>
+  <Step title="Click on the live browser image">
+    The editor displays the current browser viewport as a screencast. Click any element in the image — your click coordinates are sent to `POST /api/picker/interactive/select`, which translates pixel coordinates into a DOM selector using Playwright's element inspection.
+  </Step>
+  <Step title="Scroll if needed">
+    If the element you need is below the fold, use the scroll control in the picker panel. Scroll events are forwarded via `POST /api/picker/interactive/scroll` so the live view updates instantly.
+  </Step>
+  <Step title="Confirm the selector">
+    Once the picker captures the element, its selector is populated into the node field and the session ends. You can also call `GET /api/picker/status/:sessionId` to check the session state programmatically.
+  </Step>
+</Steps>
+
+**Interactive picker API endpoints:**
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/picker/interactive/start` | Start an interactive (screencast-based) picker session |
+| `POST` | `/api/picker/interactive/select` | Send click coordinates to select an element |
+| `POST` | `/api/picker/interactive/scroll` | Scroll the live browser view |
+| `GET` | `/api/picker/status/:sessionId` | Get the status of any picker session |
+| `POST` | `/api/picker/cancel/:sessionId` | Cancel a running session |
+
+---
+
+## Manual Selector Entry
+
+When you already know which element to target, type the selector directly into the **Selector** field on any node. QA Flow accepts any selector string that Playwright's `page.locator()` API understands.
+
+### CSS Selectors
+
+CSS selectors are the most common choice and work for the majority of use cases:
+
+```css
+/* By ID */
+#login-button
+
+/* By class */
+.submit-btn
+
+/* By attribute */
+input[type="email"]
+button[data-action="submit"]
+
+/* By attribute containing a value */
+a[href*="/dashboard"]
+
+/* Combined */
+form#checkout .payment input[name="card-number"]
+```
+
+### XPath Selectors
+
+XPath is more expressive and can target elements by text content or relative position:
+
+```xpath
+<!-- By attribute -->
+//button[@type="submit"]
+
+<!-- By text content -->
+//button[text()="Sign in"]
+
+<!-- By partial text -->
+//div[contains(@class, "modal")]
+
+<!-- Relative to a parent -->
+//form[@id="login"]//input[@name="password"]
+```
+
+<Info>
+  To use an XPath selector in Playwright (and in QA Flow's selector field), prefix it with `xpath=` if the expression doesn't already start with `//`. For example: `xpath=//button[@id="submit"]`. Expressions starting with `//` are recognized as XPath automatically.
+</Info>
+
+### Playwright Role Selectors
+
+Playwright's semantic locators target elements the way assistive technologies see them — by their ARIA role and accessible name. These are the most resilient selectors because they don't depend on implementation details like class names.
+
+```
+role=button[name="Submit"]
+role=textbox[name="Email address"]
+role=link[name="Forgot password?"]
+role=checkbox[name="Remember me"]
+```
+
+---
+
+## Reusable Locators (Page Objects)
+
+QA Flow supports a **Locator Store** — a library of reusable named locators organized by page, mirroring the Page Object Model pattern. Each locator has a name, a type, a value, and an optional description.
+
+The supported locator types map directly to Playwright's built-in locator methods:
+
+| Type | Playwright method | Example value |
+|---|---|---|
+| `css` | `page.locator()` | `#login-btn`, `.submit-button`, `[data-action="submit"]` |
+| `xpath` | `page.locator()` | `//button[@id="submit"]` |
+| `text` | `page.getByText()` | `Sign in`, `Submit form` |
+| `role` | `page.getByRole()` | `button`, `textbox`, `link` |
+| `testId` | `page.getByTestId()` | `login-form`, `submit-button` |
+| `id` | `page.locator("#id")` | `username`, `password` |
+| `placeholder` | `page.getByPlaceholder()` | `Enter your email` |
+| `altText` | `page.getByAltText()` | `Company logo` |
+| `title` | `page.getByTitle()` | `Close modal` |
+| `label` | `page.getByLabel()` | `Email`, `Password` |
+
+Role locators support additional options: `name` (accessible name), `exact` (exact match), `pressed`, `checked`, and `expanded` for stateful roles. Saved locators can be exported as a complete Playwright **Page Object Model class** — with typed `Locator` properties, a constructor, and an optional `goto()` method.
+
+---
+
+## Selector Best Practices
+
+<Tip>
+  **Prefer `data-testid` attributes.** Adding `data-testid="login-submit"` to key elements in your app makes selectors completely immune to style and layout changes. Use `page.getByTestId('login-submit')` or the `testId` locator type.
+</Tip>
+
+<Tip>
+  **Use ARIA roles and accessible names.** Selectors like `role=button[name="Sign in"]` describe the element's purpose rather than its appearance. They survive refactoring and also double as accessibility checks.
+</Tip>
+
+<Warning>
+  **Avoid nth-child and positional selectors.** Selectors like `ul > li:nth-child(3)` or `div:nth-of-type(2) > span` break whenever the page layout changes. They are also confusing to read months later.
+</Warning>
+
+<Warning>
+  **Avoid autogenerated class names.** CSS-in-JS libraries and bundlers often produce class names like `.sc-bdfxgH` or `.css-1a2b3c` that change with each build. Target semantic attributes or data attributes instead.
+</Warning>
+
+Here is a quick comparison of selector stability:
+
+| Approach | Stability | Example |
+|---|---|---|
+| `data-testid` attribute | ✅ Very stable | `[data-testid="submit-btn"]` |
+| ARIA role + name | ✅ Very stable | `role=button[name="Submit"]` |
+| Label text | ✅ Stable | `page.getByLabel("Email")` |
+| Element ID | 🟡 Usually stable | `#login-form` |
+| CSS class | 🟡 Fragile if auto-generated | `.submit-button` |
+| XPath by text | 🟡 Breaks on copy changes | `//button[text()="Submit"]` |
+| `nth-child` / positional | ❌ Very fragile | `ul > li:nth-child(2)` |

@@ -1,0 +1,236 @@
+---
+title: "Execution API: Run Tests and Check Status"
+sidebarTitle: "Execution"
+description: "Trigger test execution for a project, poll execution status, and list past runs. Execution uses Playwright under the hood and streams progress via WebSocket."
+---
+
+The Execution API lets you kick off a Playwright test run for any saved project, poll the status of an in-flight execution, and retrieve a list of all past executions. Under the hood, QA Flow compiles the project's node graph into a Playwright test suite, runs it in a headless browser, and persists the results as a `TestRun` record with associated `TestResult` entries for each node.
+
+<Note>
+  Real-time progress during execution is streamed over WebSocket. The REST status endpoint is suitable for polling, but for live progress updates in a UI connect to the WebSocket server at `ws://localhost:3001`.
+</Note>
+
+---
+
+## POST /api/run
+
+Trigger a new test execution for the specified project. QA Flow resolves the project's node graph, generates a Playwright test suite, and executes it asynchronously. The response returns an `executionId` that you can use to poll for status.
+
+**Authentication required:** Yes
+
+### Request Body
+
+<ParamField body="projectId" type="string" required>
+  The UUID of the project to execute. The project must exist and be accessible to the authenticated user.
+</ParamField>
+
+### Response
+
+<ResponseField name="executionId" type="string">
+  A unique identifier for this execution run. Use it with `GET /api/status/:executionId` to poll for results.
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST http://localhost:3001/api/run \
+  -H 'Authorization: Bearer <token>' \
+  -H 'Content-Type: application/json' \
+  -d '{"projectId": "proj-abc-123"}'
+```
+
+```json Response 200
+{
+  "executionId": "exec-7f8g9h-..."
+}
+```
+</CodeGroup>
+
+<Tip>
+  After receiving the `executionId`, poll `GET /api/status/:executionId` every second or two until the `status` field is `completed` or `failed`. Alternatively, subscribe to the WebSocket channel for push-based progress updates without polling.
+</Tip>
+
+---
+
+## GET /api/status/:executionId
+
+Retrieve the current status and results of an execution. While the run is in progress the `results` array is populated incrementally as each node finishes. When the run completes (or fails), the full result set is available.
+
+**Authentication required:** Yes
+
+### Path Parameters
+
+<ParamField path="executionId" type="string" required>
+  The execution identifier returned by `POST /api/run`.
+</ParamField>
+
+### Response
+
+<ResponseField name="status" type="string">
+  Current state of the execution. One of: `pending`, `running`, `completed`, `failed`.
+</ResponseField>
+
+<ResponseField name="results" type="array">
+  Array of per-node result objects accumulated so far.
+
+  <Expandable title="result fields">
+    <ResponseField name="nodeId" type="string">The ID of the node that was executed.</ResponseField>
+    <ResponseField name="nodeType" type="string">The type of the node (e.g. `navigate`, `click`, `assert`).</ResponseField>
+    <ResponseField name="nodeLabel" type="string | null">Human-readable label for the node, if set.</ResponseField>
+    <ResponseField name="success" type="boolean">Whether the node passed (`true`) or failed (`false`).</ResponseField>
+    <ResponseField name="message" type="string | null">A descriptive message about the result.</ResponseField>
+    <ResponseField name="error" type="string | null">Error message if the node failed; `null` otherwise.</ResponseField>
+    <ResponseField name="duration" type="number | null">Time in milliseconds the node took to execute.</ResponseField>
+    <ResponseField name="screenshot" type="string | null">Path or base64-encoded screenshot captured on failure.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="error" type="string">
+  Top-level error message present only when `status` is `failed` and the entire run could not complete.
+</ResponseField>
+
+<CodeGroup>
+```bash cURL — poll status
+curl http://localhost:3001/api/status/exec-7f8g9h \
+  -H 'Authorization: Bearer <token>'
+```
+
+```json Response — running
+{
+  "status": "running",
+  "results": [
+    {
+      "nodeId": "node-1",
+      "nodeType": "navigate",
+      "nodeLabel": "Go to homepage",
+      "success": true,
+      "message": "Navigated to https://app.example.com",
+      "error": null,
+      "duration": 842,
+      "screenshot": null
+    }
+  ]
+}
+```
+
+```json Response — completed
+{
+  "status": "completed",
+  "results": [
+    {
+      "nodeId": "node-1",
+      "nodeType": "navigate",
+      "nodeLabel": "Go to homepage",
+      "success": true,
+      "message": "Navigated to https://app.example.com",
+      "error": null,
+      "duration": 842,
+      "screenshot": null
+    },
+    {
+      "nodeId": "node-2",
+      "nodeType": "click",
+      "nodeLabel": "Click login button",
+      "success": true,
+      "message": "Clicked #login-btn",
+      "error": null,
+      "duration": 123,
+      "screenshot": null
+    }
+  ]
+}
+```
+
+```json Response — failed
+{
+  "status": "failed",
+  "results": [],
+  "error": "Project not found or execution could not start"
+}
+```
+</CodeGroup>
+
+---
+
+## GET /api/executions
+
+List all past executions recorded in the system. Returns a summary array ordered by most recent first, allowing you to review historical run data without fetching the full result set for each one.
+
+**Authentication required:** Yes
+
+### Response
+
+An array of execution summary objects.
+
+<ResponseField name="executionId" type="string">
+  The execution identifier.
+</ResponseField>
+
+<ResponseField name="projectId" type="string">
+  The UUID of the project that was executed.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Final status of the execution: `pending`, `running`, `completed`, or `failed`.
+</ResponseField>
+
+<ResponseField name="startedAt" type="string | null">
+  ISO 8601 timestamp when the execution started, or `null` if it never began.
+</ResponseField>
+
+<ResponseField name="completedAt" type="string | null">
+  ISO 8601 timestamp when the execution finished, or `null` if still running.
+</ResponseField>
+
+<ResponseField name="totalTests" type="number">
+  Total number of nodes executed.
+</ResponseField>
+
+<ResponseField name="passedTests" type="number">
+  Number of nodes that passed.
+</ResponseField>
+
+<ResponseField name="failedTests" type="number">
+  Number of nodes that failed.
+</ResponseField>
+
+<ResponseField name="duration" type="number | null">
+  Total execution duration in milliseconds, or `null` if not yet complete.
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl http://localhost:3001/api/executions \
+  -H 'Authorization: Bearer <token>'
+```
+
+```json Response 200
+[
+  {
+    "executionId": "exec-7f8g9h",
+    "projectId": "proj-abc-123",
+    "status": "completed",
+    "startedAt": "2024-04-10T09:00:00.000Z",
+    "completedAt": "2024-04-10T09:00:45.000Z",
+    "totalTests": 8,
+    "passedTests": 7,
+    "failedTests": 1,
+    "duration": 45320
+  },
+  {
+    "executionId": "exec-2d3e4f",
+    "projectId": "proj-xyz-456",
+    "status": "failed",
+    "startedAt": "2024-04-09T15:30:00.000Z",
+    "completedAt": "2024-04-09T15:30:03.000Z",
+    "totalTests": 3,
+    "passedTests": 0,
+    "failedTests": 3,
+    "duration": 3100
+  }
+]
+```
+</CodeGroup>
+
+<Tip>
+  For richer per-node result data and associated HTML reports, use the [Test Runs API](/api-reference/test-runs) which stores the same information in the persistent database with full `TestResult` records attached.
+</Tip>

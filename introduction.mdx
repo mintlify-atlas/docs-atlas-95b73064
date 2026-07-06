@@ -1,0 +1,83 @@
+---
+title: "QA Flow: Visual Playwright Test Automation Editor"
+sidebarTitle: "Introduction"
+description: "QA Flow is an open-source, no-code visual editor for building and running Playwright tests with drag-and-drop nodes and real-time browser screencasting."
+---
+
+QA Flow is an open-source, Apache-2.0 licensed platform that lets you design, execute, and manage Playwright browser automation tests entirely through a visual node-based canvas — no code required. Instead of writing test scripts by hand, you drag and connect nodes that represent actions, assertions, and navigation steps, and QA Flow translates that graph into fully executable Playwright automation behind the scenes.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Visual Canvas Editor" icon="diagram-project">
+    Build tests by dragging and connecting nodes on an interactive canvas powered by XyFlow. Every action, assertion, and navigation step is a visual node — no code required.
+  </Card>
+  <Card title="Real-Time Screencast" icon="display">
+    Watch your browser execute each test step live. The built-in execution panel streams a screencast directly from the Playwright headless browser via CDP, with no extra setup.
+  </Card>
+  <Card title="30+ Node Types" icon="shapes">
+    Choose from triggers, hooks, actions (navigate, click, type, scroll, hover, screenshot, wait), and assertions (text, visibility, URL, attribute) to cover any test scenario.
+  </Card>
+  <Card title="Device Emulation" icon="mobile">
+    Emulate iPhones, Pixels, iPads, and Galaxy devices from the Start node. Configure viewport, locale, timezone, geolocation, color scheme, network conditions, and user agent.
+  </Card>
+  <Card title="HTML Test Reports" icon="chart-bar">
+    Every run generates a Playwright-style HTML report complete with per-step results, screenshots, and a full execution history you can review at any time.
+  </Card>
+  <Card title="Playwright Code Generation" icon="code">
+    Export any flow as runnable Playwright TypeScript code, or record browser interactions directly to generate nodes automatically — bridging the gap between visual and code-based testing.
+  </Card>
+  <Card title="Parallel Execution" icon="bolt">
+    Run tests serially or in parallel using configurable worker counts, retries, timeouts, and max-failure thresholds — all set through the project configuration modal.
+  </Card>
+  <Card title="JWT Auth & Roles" icon="shield-halved">
+    Secure your instance with JWT-based authentication and role-based access control (Admin / User), making QA Flow safe to self-host for teams of any size.
+  </Card>
+</CardGroup>
+
+## Architecture Overview
+
+QA Flow is a full-stack web application with four cooperating layers that work together from the moment you drag a node to the moment a test result appears on screen.
+
+| Layer | Technology | Role |
+|---|---|---|
+| **Frontend** | React 19 + XyFlow + React Router | Visual canvas editor, execution panel, project management UI |
+| **Backend** | Node.js + Express | REST API, WebSocket server, test orchestration |
+| **Database** | Prisma ORM with SQLite (or Turso cloud) | Stores projects, flows, runs, users, and locators |
+| **Execution Engine** | Playwright (Chromium) | Runs tests headlessly, streams CDP frames for the screencast |
+
+Real-time updates — including live node status changes (🟢 success, 🔴 failure, 🟡 in-progress) and screencast frames — are pushed from the server to the browser over a persistent WebSocket connection. The execution engine runs in the same Node.js process as the Express server, keeping deployment simple: a single container or process serves everything.
+
+## Node Types at a Glance
+
+| Category | Nodes |
+|---|---|
+| **Trigger** | Start (URL, browser, viewport, device emulation) |
+| **Hooks** | `beforeAll`, `beforeEach`, `afterEach`, `afterAll` |
+| **Actions** | Navigate, Click, Type, Wait, Screenshot, Scroll, Hover, Key Press |
+| **Assertions** | Verify text, visible, URL, attribute |
+
+## Who Is QA Flow For?
+
+QA Flow is built for three audiences:
+
+- **QA engineers** who want to create and maintain browser automation tests without dealing with code scaffolding, selector management, or Playwright configuration.
+- **Developers** who need to produce automated test coverage quickly — especially during exploratory or regression testing phases — and want to see test execution in real time.
+- **Teams** that want a self-hosted, open-source testing platform they can deploy behind their own firewall, integrate into CI/CD, and extend with their own contributions.
+
+## Quick Links
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Launch QA Flow with a single `npx` command and run your first test in under two minutes.
+  </Card>
+  <Card title="Installation" icon="wrench" href="/installation">
+    Explore all install methods: npx, Docker, and local development setup.
+  </Card>
+  <Card title="Editor Guide" icon="pen-to-square" href="/editor">
+    Learn how to use the canvas, configure nodes, and manage selectors with the visual picker.
+  </Card>
+  <Card title="Running Tests" icon="play" href="/running-tests">
+    Understand execution modes, parallel workers, retries, and how to read HTML reports.
+  </Card>
+</CardGroup>

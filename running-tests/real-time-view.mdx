@@ -1,0 +1,124 @@
+---
+title: "Watch Tests Run Live with Screencast and CDP"
+sidebarTitle: "Real-Time View"
+description: "Monitor test execution in real time using QA Flow's built-in browser screencast or connect your own Chrome with remote debugging for direct interaction."
+---
+
+Seeing exactly what the browser is doing while a test runs is invaluable for debugging failures and building confidence in your suite. QA Flow offers two distinct approaches: a zero-configuration integrated screencast that works in every deployment, and an advanced remote CDP mode that streams execution into your own local Chrome instance for direct interaction.
+
+## Option 1: Integrated Screencast (Recommended)
+
+The easiest way to watch your tests run is to simply click **▶ Execute** — no extra setup required. As soon as execution starts, QA Flow automatically opens the execution panel on the right side of the editor and begins rendering a live frame-by-frame view of the headless Chromium browser.
+
+<Steps>
+  <Step title="Click ▶ Execute in the toolbar">
+    The execution panel slides open immediately. Node status indicators on the canvas begin updating in real time.
+  </Step>
+  <Step title="Watch the screencast panel">
+    The lower portion of the execution panel shows a live stream of the browser viewport. You can see navigation, form fills, clicks, and assertions happening as each node runs.
+  </Step>
+  <Step title="Review node results inline">
+    As each node completes, the canvas marks it 🟢 (success) or 🔴 (failure). Click any node to see its result message and duration without leaving the editor.
+  </Step>
+</Steps>
+
+<Note>
+  The screencast uses Chrome DevTools Protocol (CDP) internally. QA Flow connects to the headless Chromium process over CDP and pushes individual frames to the frontend via WebSocket. This works identically in both local `npx` installations and Docker container deployments — no port mapping or extra configuration is needed.
+</Note>
+
+---
+
+## Option 2: Remote CDP (Advanced)
+
+Remote CDP mode lets you route test execution through a Chrome browser running on your own machine. This is useful when you want to:
+
+- See the test in a full, non-headless browser window you can interact with
+- Use QA Flow's **Visual Picker** (🎯) to select page elements using your local Chrome's native inspector
+- Debug tests where the headless environment behaves differently from your regular browser
+
+### Setup Steps
+
+<Steps>
+  <Step title="Launch Chrome with remote debugging enabled">
+    Open a terminal and start Chrome with the `--remote-debugging-port=9222` flag. Use the command for your operating system:
+
+    <Tabs>
+      <Tab title="Windows">
+        ```cmd
+        "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222
+        ```
+      </Tab>
+      <Tab title="macOS">
+        ```bash
+        /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222
+        ```
+      </Tab>
+      <Tab title="Linux">
+        ```bash
+        google-chrome --remote-debugging-port=9222
+        ```
+      </Tab>
+    </Tabs>
+
+    Chrome will open a new window. Leave it open — QA Flow will attach to it automatically when you run a test.
+  </Step>
+  <Step title="Configure the CDP URL in QA Flow">
+    There are two ways to point QA Flow at your remote Chrome instance:
+
+    **Via the Start node (per-project):** Open the Start node in the canvas, scroll to the **Advanced** section, and enter `http://localhost:9222` in the **CDP URL** field. This setting is saved with the project.
+
+    **Via environment variable (global):** Set `CDP_URL=http://localhost:9222` before starting the server. This applies to all projects that don't have a node-level CDP URL set.
+  </Step>
+  <Step title="Run the test">
+    Click **▶ Execute** as normal. QA Flow will connect to your local Chrome rather than spawning a new headless instance. You will see the browser navigate and interact with pages in your Chrome window in real time.
+  </Step>
+</Steps>
+
+### Docker + Remote CDP
+
+When running QA Flow inside Docker, `localhost` inside the container refers to the container itself, not your host machine. Use the appropriate hostname to reach your host's Chrome instance:
+
+```bash
+docker run -p 3001:3001 \
+  -e CDP_URL="http://host.docker.internal:9222" \
+  davidg1997/qa-flow
+```
+
+<Info>
+  `host.docker.internal` is the magic hostname Docker Desktop provides on **Windows** and **macOS** to reach services on the host machine. On **Linux**, Docker Desktop also supports it in recent versions. If it does not resolve, use `--network=host` and point to `http://localhost:9222`, or replace it with your machine's local IP address.
+</Info>
+
+| Platform | Recommended hostname |
+|----------|---------------------|
+| Windows (Docker Desktop) | `host.docker.internal` |
+| macOS (Docker Desktop) | `host.docker.internal` |
+| Linux (Docker Engine) | `--network=host` or host LAN IP |
+
+---
+
+## Comparison: Screencast vs. Remote CDP
+
+<CardGroup cols={2}>
+  <Card title="Integrated Screencast" icon="display">
+    **Best for:** Everyday test runs, CI/CD, Docker deployments
+
+    - ✅ Zero configuration
+    - ✅ Works everywhere (local & Docker)
+    - ✅ No Chrome installation needed on the host
+    - ✅ Frames streamed directly in the QA Flow UI
+    - ⚙️ Headless only — no browser window on your desktop
+  </Card>
+  <Card title="Remote CDP" icon="browsers">
+    **Best for:** Debugging, element selection, interactive testing
+
+    - ✅ Full visible Chrome browser on your desktop
+    - ✅ Enables the Visual Picker (🎯) element selector
+    - ✅ Useful for sites with anti-headless detection
+    - ⚙️ Requires Chrome open with remote debugging flag
+    - ⚙️ Extra network config needed inside Docker
+  </Card>
+</CardGroup>
+
+<Tip>
+  The **Visual Picker** (🎯) — QA Flow's interactive element selector that lets you click directly on a page to generate a CSS selector — also works over CDP when running in Docker. Start Chrome on your host with remote debugging, configure `CDP_URL`, and the picker will run your preceding flow steps in your local Chrome before presenting the interactive selection overlay. This is the recommended approach for building tests against pages that require multiple preceding steps to reach.
+</Tip>

@@ -1,0 +1,182 @@
+---
+title: "Database Configuration: SQLite, Turso, and PostgreSQL"
+sidebarTitle: "Database"
+description: "QA Flow uses Prisma ORM with SQLite by default. Switch to Turso cloud, PostgreSQL, or MySQL for production deployments with persistent storage."
+---
+
+QA Flow uses [Prisma ORM](https://www.prisma.io/) to talk to its database, which means the same application code runs against SQLite for simple local setups, Turso (libsql) for cloud-backed deployments, or a full PostgreSQL server for teams that need robust multi-user persistence. Out of the box, no database configuration is required — the server creates a SQLite file automatically on first start.
+
+## Default Setup: SQLite
+
+When you start QA Flow with Docker, the server writes its SQLite database to `/app/data/qa-flow.db` inside the container. A named Docker volume (`qa-flow-data`) is mounted at `/app/data`, so the database survives container restarts and upgrades.
+
+```bash
+docker run -it --rm \
+  -p 3001:3001 \
+  -v qa-flow-data:/app/data \
+  davidg1997/qa-flow
+```
+
+The corresponding `DATABASE_URL` for this path is:
+
+```env
+DATABASE_URL=file:/app/data/qa-flow.db
+```
+
+SQLite is a great choice for single-user or small-team deployments because it requires zero additional infrastructure.
+
+## Database Schema
+
+QA Flow's Prisma schema defines six models that cover users, projects, test execution history, and generated reports.
+
+<CardGroup cols={2}>
+  <Card title="User" icon="user">
+    Stores registered accounts. Fields: `id` (UUID), `email` (unique), `name`, `passwordHash`, `role` (`ADMIN` or `USER`), `createdAt`, `updatedAt`.
+  </Card>
+  <Card title="Project" icon="diagram-project">
+    Represents a test flow. Stores `name`, `description`, `nodes` (JSON array), `edges` (JSON array), and `config` (JSON `ProjectConfig`), plus timestamps.
+  </Card>
+  <Card title="ProjectMember" icon="users">
+    Junction table linking users to projects. Each record holds `projectId`, `userId`, and `role` (`OWNER` or `MEMBER`). The combination of project + user is unique.
+  </Card>
+  <Card title="TestRun" icon="play">
+    Records each execution. Tracks `status` (`pending` → `running` → `completed` / `failed`), `startedAt`, `completedAt`, `totalTests`, `passedTests`, `failedTests`, `duration` (ms), and an optional `error` message.
+  </Card>
+  <Card title="TestResult" icon="list-check">
+    Individual node-level results within a run. Stores `nodeId`, `nodeType`, `nodeLabel`, `success`, `message`, `error`, `duration` (ms), and an optional `screenshot` path or base64 string.
+  </Card>
+  <Card title="Report" icon="file-lines">
+    Holds the generated Playwright-style HTML report for a test run. Contains `htmlContent` (the full HTML string) and `summary` (a JSON object with aggregate statistics).
+  </Card>
+</CardGroup>
+
+## Switching Databases
+
+<Tabs>
+  <Tab title="SQLite (default)">
+    No changes needed. The default `DATABASE_URL` points to a local SQLite file.
+
+    ```env server/.env
+    DATABASE_URL=file:./data/qa-flow.db
+    ```
+
+    For Docker, the file lives inside the named volume:
+
+    ```env
+    DATABASE_URL=file:/app/data/qa-flow.db
+    ```
+
+    The Prisma schema uses `provider = "sqlite"` by default, so no schema changes are required.
+
+    <Tip>
+      Before upgrading QA Flow to a new version, back up your SQLite file by copying the volume contents or running:
+      ```bash
+      docker cp qa-flow:/app/data/qa-flow.db ./qa-flow-backup.db
+      ```
+    </Tip>
+  </Tab>
+  <Tab title="Turso (libsql)">
+    [Turso](https://turso.tech/) is a cloud-hosted libsql database that is fully compatible with QA Flow's SQLite-based Prisma schema — no schema changes are needed.
+
+    Set both environment variables:
+
+    ```env server/.env
+    DATABASE_URL=libsql://your-db.turso.io
+    TURSO_AUTH_TOKEN=your-auth-token
+    ```
+
+    Or with Docker:
+
+    ```bash
+    docker run -it --rm \
+      -p 3001:3001 \
+      -e DATABASE_URL="libsql://your-db.turso.io" \
+      -e TURSO_AUTH_TOKEN="your-turso-token" \
+      -e JWT_SECRET="your-secret" \
+      davidg1997/qa-flow
+    ```
+
+    <Note>
+      `TURSO_AUTH_TOKEN` is only read by the server when `DATABASE_URL` starts with `libsql://`. It has no effect for SQLite or PostgreSQL connections.
+    </Note>
+  </Tab>
+  <Tab title="PostgreSQL">
+    PostgreSQL is recommended for production deployments that require multi-instance scaling, pgBackup tooling, or a managed cloud database (RDS, Supabase, Neon, etc.).
+
+    **Step 1 — Update the Prisma datasource provider**
+
+    Edit `server/prisma/schema.prisma`:
+
+    ```prisma server/prisma/schema.prisma
+    datasource db {
+      provider = "postgresql"
+    }
+    ```
+
+    **Step 2 — Set `DATABASE_URL`**
+
+    ```env server/.env
+    DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE?schema=public
+    ```
+
+    **Step 3 — Run migrations**
+
+    ```bash
+    pnpm db:migrate
+    pnpm db:generate
+    ```
+
+    **Docker Compose (production)**
+
+    The included `docker-compose.prod.yml` extends the base Compose file to add a PostgreSQL service automatically:
+
+    ```bash
+    docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+    ```
+
+    This starts both the QA Flow server and a `postgres:16-alpine` container. The `DATABASE_URL` is set to `postgresql://qaflow:<POSTGRES_PASSWORD>@postgres:5432/qaflow?schema=public` automatically.
+
+    <Warning>
+      Switching an existing SQLite deployment to PostgreSQL requires migrating your data manually. There is no automatic migration tool — export your projects as JSON from the UI before switching providers, then re-import after the new database is up.
+    </Warning>
+  </Tab>
+</Tabs>
+
+## Prisma Commands
+
+These commands are used during local development to manage the database schema and client.
+
+| Command | Description |
+|---|---|
+| `pnpm db:generate` | Regenerate the Prisma client after any schema change |
+| `pnpm db:migrate` | Apply pending migrations to the database |
+| `pnpm db:studio` | Open Prisma Studio — a visual GUI for browsing and editing records |
+| `pnpm --filter qa-flow-server db:reset` | Drop and recreate the database, then re-run all migrations |
+
+<Steps>
+  <Step title="Edit the Schema">
+    Make your changes to `server/prisma/schema.prisma`.
+  </Step>
+  <Step title="Create and Apply a Migration">
+    ```bash
+    pnpm db:migrate
+    ```
+    This generates a new SQL migration file and applies it to the development database.
+  </Step>
+  <Step title="Regenerate the Prisma Client">
+    ```bash
+    pnpm db:generate
+    ```
+    Updates the type-safe client used by the server's services to match the new schema.
+  </Step>
+  <Step title="Verify with Prisma Studio">
+    ```bash
+    pnpm db:studio
+    ```
+    Opens a browser-based GUI at `http://localhost:5555` where you can inspect tables and individual records.
+  </Step>
+</Steps>
+
+<Warning>
+  Running `pnpm --filter qa-flow-server db:reset` **permanently deletes all data** in the development database and re-applies migrations from scratch. Never run this command against a production or shared staging database. Always back up your SQLite file (or export projects as JSON) before resetting, and never run `db:reset` in a production environment.
+</Warning>

@@ -1,47 +1,146 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Get Started with QA Flow in Under Two Minutes"
+sidebarTitle: "Quickstart"
+description: "Launch QA Flow with a single npx command, log in with default credentials, and run your first automated Playwright test flow in minutes."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
-
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
+QA Flow is designed to go from zero to running browser tests as fast as possible. With a single `npx` command the CLI pulls the official Docker image, starts the server, and opens the visual editor — no local installation, no configuration files, and no Playwright setup needed on your machine.
 
 ## Prerequisites
 
-Before you begin, you must have:
+Before you begin, make sure the following are available on your system:
 
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
+<CardGroup cols={2}>
+  <Card title="Node.js 18+" icon="node-js">
+    Required to run the `npx @davidg97/qa-flow` launcher CLI. Download from [nodejs.org](https://nodejs.org/).
+  </Card>
+  <Card title="Docker" icon="docker">
+    The CLI launches QA Flow inside a Docker container. Install Docker Desktop from [docs.docker.com/get-docker](https://docs.docker.com/get-docker/).
+  </Card>
+</CardGroup>
 
-## Get started
+## Launch Your First Test
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+  <Step title="Install and launch QA Flow">
+    Run the following command in any terminal. The CLI will pull the `davidg1997/qa-flow` Docker image on first run and start the application on port **3001**.
 
     ```bash
-    npm install your-package
+    npx @davidg97/qa-flow
+    ```
+
+    You will see the QA Flow banner, a Docker pull progress indicator, and then a confirmation that the server is running:
+
+    ```
+    🚀 Starting on port 3001...
+       Open: http://localhost:3001
+       Login: admin@qaflow.com / admin123
+    ```
+
+    The CLI automatically mounts three Docker volumes to persist your data across restarts:
+
+    | Volume | Contents |
+    |---|---|
+    | `qa-flow-data` | SQLite database (projects, flows, users) |
+    | `qa-flow-screenshots` | Screenshots captured during test runs |
+    | `qa-flow-recordings` | Session recordings |
+
+    To use a different port, pass the `-p` / `--port` flag:
+
+    ```bash
+    npx @davidg97/qa-flow --port 8080
     ```
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
 
-    ```bash
-    your-cli init
-    ```
+  <Step title="Open the editor and log in">
+    Navigate to [http://localhost:3001](http://localhost:3001) in your browser. You will be greeted by the QA Flow login screen.
+
+    Use the default credentials to sign in:
+
+    | Field | Value |
+    |---|---|
+    | Email | `admin@qaflow.com` |
+    | Password | `admin123` |
+
+    <Note>
+      These credentials are intentionally simple for first-run evaluation. Change the admin password and set a strong `JWT_SECRET` environment variable (minimum 32 characters) before exposing QA Flow to any network other than localhost. See the [Installation guide](/installation) for details.
+    </Note>
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
 
-    ```bash
-    your-cli start
-    ```
+  <Step title="Create a new project">
+    After logging in you will land on the projects dashboard. Click **New Project**, enter a name (for example, `My First Project`), and confirm. QA Flow will create the project and take you into the flow editor canvas.
+  </Step>
+
+  <Step title="Design your first test flow">
+    The canvas starts empty. Build a test by dragging nodes from the left panel and connecting their ports:
+
+    1. **Drag a Start node** onto the canvas. In its configuration panel, set the **URL** to the site you want to test (e.g. `https://example.com`) and choose a browser (Chromium is the default).
+    2. **Add action nodes** — drag a **Navigate** node and set the path to `/login`, then a **Type** node for the email field, another **Type** node for the password field, and a **Click** node for the submit button.
+    3. **Add an assertion** — drag an **Assert Visible** node and set its selector to `.dashboard` to confirm the login succeeded.
+    4. **Connect the nodes** by dragging from the output handle of one node to the input handle of the next to form a chain.
+
+    <Tip>
+      Use the **Visual Selector Picker** (🎯) inside any node's selector field to click elements directly in a live browser preview instead of typing CSS selectors by hand.
+    </Tip>
+  </Step>
+
+  <Step title="Run the test and watch it live">
+    Click the **▶ Execute** button in the toolbar. The execution panel slides open on the right and immediately begins streaming a live screencast of the Chromium browser as it works through your nodes.
+
+    Each node in the canvas updates its status in real time:
+
+    - 🟢 **Green** — step passed
+    - 🔴 **Red** — step failed
+    - 🟡 **Yellow** — step currently running
+
+    When the run finishes, click **View Report** to open the generated Playwright-style HTML report with per-step timings, screenshots, and pass/fail details.
   </Step>
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+## Example: A Simple Login Test
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+Here is what a complete login test flow looks like as a node chain, using the configuration from the step above:
+
+```
+[Start: https://example.com] → [Navigate: /login] → [Type: #email] → [Type: #password] → [Click: button[type="submit"]] → [Assert Visible: .dashboard]
+```
+
+The corresponding node configuration at a glance:
+
+| Node | Key Setting | Value |
+|---|---|---|
+| **Start** | URL | `https://example.com` |
+| **Navigate** | Path | `/login` |
+| **Type** | Selector / Text | `#email` / `user@test.com` |
+| **Type** | Selector / Text | `#password` / `mypassword` |
+| **Click** | Selector | `button[type="submit"]` |
+| **Assert Visible** | Selector | `.dashboard` |
+
+## CLI Reference
+
+The `npx @davidg97/qa-flow` launcher supports a handful of flags for common tasks:
+
+```bash
+# Start on a custom port
+npx @davidg97/qa-flow --port 8080
+npx @davidg97/qa-flow -p 8080
+
+# Print the installed version and exit
+npx @davidg97/qa-flow --version
+npx @davidg97/qa-flow -v
+
+# Show help and all available options
+npx @davidg97/qa-flow --help
+npx @davidg97/qa-flow -h
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation Options" icon="wrench" href="/installation">
+    Run QA Flow via Docker directly or set up a full local development environment with pnpm.
+  </Card>
+  <Card title="Editor Guide" icon="pen-to-square" href="/editor">
+    Deep-dive into every node type, the visual selector picker, device emulation, and flow management.
+  </Card>
+</CardGroup>

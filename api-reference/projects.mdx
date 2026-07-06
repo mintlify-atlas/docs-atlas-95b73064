@@ -1,0 +1,358 @@
+---
+title: "Projects API: Create, Read, Update, and Delete Flows"
+sidebarTitle: "Projects"
+description: "Manage QA Flow test projects via REST. Projects store node graphs (nodes + edges JSON) and project-level configuration like execution mode and workers."
+---
+
+Projects are the core resource in QA Flow. Each project represents a visual test flow composed of a graph of nodes (individual test actions) and edges (the connections between them). Projects also carry an optional `config` object for settings such as execution mode and worker count. All project endpoints require authentication; write operations additionally enforce ownership — only the project owner or an admin can update or delete a project.
+
+---
+
+## Project Object
+
+Every project endpoint returns one or more project objects with the following shape.
+
+<ResponseField name="id" type="string">
+  UUID uniquely identifying the project.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Human-readable project name.
+</ResponseField>
+
+<ResponseField name="description" type="string | null">
+  Optional description of what the project tests.
+</ResponseField>
+
+<ResponseField name="nodes" type="string">
+  JSON-serialized array of node definitions that make up the test flow graph.
+</ResponseField>
+
+<ResponseField name="edges" type="string">
+  JSON-serialized array of edge definitions describing the connections between nodes.
+</ResponseField>
+
+<ResponseField name="config" type="string | null">
+  JSON-serialized `ProjectConfig` object containing execution settings (e.g. parallel workers, browser, timeouts). `null` when no config has been set.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp of when the project was created.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string">
+  ISO 8601 timestamp of the most recent update.
+</ResponseField>
+
+---
+
+## GET /api/projects
+
+List all projects accessible to the authenticated user. Admin users receive all projects in the system; regular users see only the projects they own or are a member of.
+
+**Authentication required:** Yes
+
+### Response
+
+An array of [project objects](#project-object).
+
+<CodeGroup>
+```bash cURL
+curl http://localhost:3001/api/projects \
+  -H 'Authorization: Bearer <token>'
+```
+
+```json Response 200
+[
+  {
+    "id": "proj-abc-123",
+    "name": "Checkout Flow",
+    "description": "End-to-end tests for the checkout process",
+    "nodes": "[...]",
+    "edges": "[...]",
+    "config": "{\"workers\":2}",
+    "createdAt": "2024-03-01T09:00:00.000Z",
+    "updatedAt": "2024-03-10T14:22:00.000Z"
+  }
+]
+```
+</CodeGroup>
+
+---
+
+## POST /api/projects
+
+Create a new project. The authenticated user becomes the project owner (stored as a `ProjectMember` with the `OWNER` role).
+
+**Authentication required:** Yes
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  The project name. Must be a non-empty string.
+</ParamField>
+
+<ParamField body="nodes" type="array" required>
+  Array of node definition objects representing the flow graph nodes.
+</ParamField>
+
+<ParamField body="edges" type="array" required>
+  Array of edge objects describing connections between nodes.
+</ParamField>
+
+<ParamField body="description" type="string">
+  Optional human-readable description of the project.
+</ParamField>
+
+<ParamField body="config" type="object">
+  Optional project configuration object (serialized as JSON). Controls execution behaviour such as parallel workers, browser selection, and timeouts.
+</ParamField>
+
+### Response
+
+Returns the newly created [project object](#project-object) with status `201 Created`.
+
+<CodeGroup>
+```bash cURL
+curl -X POST http://localhost:3001/api/projects \
+  -H 'Authorization: Bearer <token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "Login Tests",
+    "description": "Validates the login and logout flows",
+    "nodes": [
+      { "id": "node-1", "type": "navigate", "data": { "url": "https://app.example.com" } }
+    ],
+    "edges": [],
+    "config": { "workers": 1 }
+  }'
+```
+
+```json Response 201
+{
+  "id": "proj-xyz-456",
+  "name": "Login Tests",
+  "description": "Validates the login and logout flows",
+  "nodes": "[{\"id\":\"node-1\",...}]",
+  "edges": "[]",
+  "config": "{\"workers\":1}",
+  "createdAt": "2024-04-01T12:00:00.000Z",
+  "updatedAt": "2024-04-01T12:00:00.000Z"
+}
+```
+</CodeGroup>
+
+<Warning>
+  If `name`, `nodes`, or `edges` are missing from the request body, the API returns `400 Bad Request` with `{ "error": "Faltan campos requeridos: name, nodes, edges" }`.
+</Warning>
+
+---
+
+## GET /api/projects/:id
+
+Retrieve a single project by its UUID. Admins can access any project; regular users can only access projects they own or are a member of.
+
+**Authentication required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The UUID of the project to retrieve.
+</ParamField>
+
+### Response
+
+Returns the matching [project object](#project-object), or `404 Not Found` if the project does not exist or is not accessible to the user.
+
+<CodeGroup>
+```bash cURL
+curl http://localhost:3001/api/projects/proj-abc-123 \
+  -H 'Authorization: Bearer <token>'
+```
+
+```json Response 200
+{
+  "id": "proj-abc-123",
+  "name": "Checkout Flow",
+  "description": "End-to-end tests for the checkout process",
+  "nodes": "[...]",
+  "edges": "[...]",
+  "config": null,
+  "createdAt": "2024-03-01T09:00:00.000Z",
+  "updatedAt": "2024-03-10T14:22:00.000Z"
+}
+```
+</CodeGroup>
+
+---
+
+## PUT /api/projects/:id
+
+Update an existing project. Only the project owner or an admin can perform updates. Partial updates are supported — supply only the fields you want to change.
+
+**Authentication required:** Yes (owner or admin)
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The UUID of the project to update.
+</ParamField>
+
+### Request Body
+
+<ParamField body="name" type="string">
+  Updated project name.
+</ParamField>
+
+<ParamField body="description" type="string">
+  Updated description.
+</ParamField>
+
+<ParamField body="nodes" type="array">
+  Replacement nodes array. Overwrites the existing nodes entirely.
+</ParamField>
+
+<ParamField body="edges" type="array">
+  Replacement edges array. Overwrites the existing edges entirely.
+</ParamField>
+
+<ParamField body="config" type="object">
+  Updated project configuration.
+</ParamField>
+
+### Response
+
+Returns the updated [project object](#project-object) on success. Returns `403 Forbidden` if the user lacks permission to update the project.
+
+<CodeGroup>
+```bash cURL
+curl -X PUT http://localhost:3001/api/projects/proj-abc-123 \
+  -H 'Authorization: Bearer <token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "Checkout Flow v2",
+    "config": { "workers": 4 }
+  }'
+```
+
+```json Response 200
+{
+  "id": "proj-abc-123",
+  "name": "Checkout Flow v2",
+  "description": "End-to-end tests for the checkout process",
+  "nodes": "[...]",
+  "edges": "[...]",
+  "config": "{\"workers\":4}",
+  "createdAt": "2024-03-01T09:00:00.000Z",
+  "updatedAt": "2024-04-15T08:45:00.000Z"
+}
+```
+</CodeGroup>
+
+<Tabs>
+  <Tab title="403 Forbidden">
+    The authenticated user does not own the project and is not an admin.
+
+    ```json
+    { "error": "No tienes permiso para editar este proyecto" }
+    ```
+  </Tab>
+  <Tab title="404 Not Found">
+    No project exists with the given ID, or it is not accessible to the user.
+
+    ```json
+    { "error": "Proyecto no encontrado" }
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## DELETE /api/projects/:id
+
+Permanently delete a project and all its associated test runs, results, and reports. Only the project owner or an admin can delete a project.
+
+**Authentication required:** Yes (owner or admin)
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The UUID of the project to delete.
+</ParamField>
+
+### Response
+
+Returns `204 No Content` on success. Returns `403 Forbidden` if the user does not have permission.
+
+<CodeGroup>
+```bash cURL
+curl -X DELETE http://localhost:3001/api/projects/proj-abc-123 \
+  -H 'Authorization: Bearer <token>'
+```
+
+```text Response 204
+(no body)
+```
+</CodeGroup>
+
+---
+
+## GET /api/projects/:id/flow
+
+Retrieve the project converted into a `TestFlow` object — the internal representation consumed by the Playwright execution engine. This is useful when integrating external tooling that needs the parsed, structured form of the flow rather than the raw JSON strings.
+
+**Authentication required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The UUID of the project whose flow representation to retrieve.
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="string">
+  Project UUID.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Project name.
+</ResponseField>
+
+<ResponseField name="nodes" type="array">
+  Parsed array of node objects (deserialized from the stored JSON string).
+</ResponseField>
+
+<ResponseField name="edges" type="array">
+  Parsed array of edge objects (deserialized from the stored JSON string).
+</ResponseField>
+
+<ResponseField name="config" type="object | null">
+  Parsed `ProjectConfig` object, or `null` if no config is set.
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl http://localhost:3001/api/projects/proj-abc-123/flow \
+  -H 'Authorization: Bearer <token>'
+```
+
+```json Response 200
+{
+  "id": "proj-abc-123",
+  "name": "Checkout Flow",
+  "nodes": [
+    { "id": "node-1", "type": "navigate", "data": { "url": "https://shop.example.com" } },
+    { "id": "node-2", "type": "click", "data": { "selector": "#add-to-cart" } }
+  ],
+  "edges": [
+    { "id": "edge-1", "source": "node-1", "target": "node-2" }
+  ],
+  "config": null
+}
+```
+</CodeGroup>
+
+<Note>
+  The `/flow` endpoint differs from `GET /api/projects/:id` in that `nodes`, `edges`, and `config` are returned as parsed JavaScript objects rather than raw JSON strings. Use this endpoint when you need to inspect or forward the flow to the execution engine directly.
+</Note>

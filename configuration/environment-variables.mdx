@@ -1,0 +1,128 @@
+---
+title: "Environment Variables Reference for QA Flow"
+sidebarTitle: "Env Variables"
+description: "Full reference for all QA Flow environment variables: PORT, JWT_SECRET, DATABASE_URL, TURSO_AUTH_TOKEN, and CDP_URL with defaults and usage examples."
+---
+
+QA Flow's server is configured entirely through environment variables, making it straightforward to deploy in Docker, Docker Compose, or any container orchestration platform without modifying source files. The table below covers every supported variable along with its default value and whether it is required for a production deployment.
+
+## Variable Reference
+
+| Variable | Description | Default | Required |
+|---|---|---|---|
+| `PORT` | TCP port the Express server listens on | `3001` | No |
+| `JWT_SECRET` | Secret used to sign and verify JWT authentication tokens | `change-me-in-production` | **Yes** (production) |
+| `DATABASE_URL` | Prisma connection URL for the database | `file:/app/data/qa-flow.db` | No |
+| `TURSO_AUTH_TOKEN` | Authentication token for a Turso libsql cloud database | — | Conditional |
+| `CDP_URL` | Chrome DevTools Protocol URL for a remote browser connection | — | No |
+
+## Variable Details
+
+<CardGroup cols={1}>
+  <Card title="PORT" icon="plug">
+    Sets the port the QA Flow server binds to inside the container. The default is `3001`. When mapping ports in Docker, make sure the host port in `-p HOST:3001` matches the value you expose outside the container — the internal container port should stay `3001`.
+  </Card>
+  <Card title="JWT_SECRET" icon="key">
+    Used to sign every authentication token issued by the server. Any string works in local development, but a production deployment **must** use a randomly generated secret of at least 32 characters. When you start QA Flow via `npx @davidg97/qa-flow`, a secure secret is generated automatically for that session.
+  </Card>
+  <Card title="DATABASE_URL" icon="database">
+    A Prisma-compatible connection string. The default points to a local SQLite file at `/app/data/qa-flow.db` inside the container. Switching to Turso or PostgreSQL is done by changing this value — see the [Database configuration guide](/configuration/database) for full details.
+  </Card>
+  <Card title="TURSO_AUTH_TOKEN" icon="shield-check">
+    Only needed when `DATABASE_URL` points to a Turso libsql cloud endpoint (i.e., starts with `libsql://`). Leave this unset when using SQLite or PostgreSQL.
+  </Card>
+  <Card title="CDP_URL" icon="chrome">
+    Optional endpoint for a Chrome instance started with `--remote-debugging-port`. When set at the server level, it becomes the default CDP URL for all projects that do not override it in their own settings. Useful when running QA Flow in Docker and wanting tests to execute in a visible browser on the host.
+  </Card>
+</CardGroup>
+
+## How to Set Variables
+
+<Tabs>
+  <Tab title="Docker Run">
+    Pass each variable using the `-e` flag:
+
+    ```bash
+    docker run -it --rm \
+      -p 3001:3001 \
+      -v qa-flow-data:/app/data \
+      -e JWT_SECRET="your-super-secret-key-minimum-32-characters" \
+      -e PORT=3001 \
+      davidg1997/qa-flow
+    ```
+
+    For a Turso-backed deployment:
+
+    ```bash
+    docker run -it --rm \
+      -p 3001:3001 \
+      -e DATABASE_URL="libsql://your-db.turso.io" \
+      -e TURSO_AUTH_TOKEN="your-turso-token" \
+      -e JWT_SECRET="your-super-secret-key-minimum-32-characters" \
+      davidg1997/qa-flow
+    ```
+  </Tab>
+  <Tab title="Docker Compose">
+    Define variables in the `environment:` block of your `docker-compose.yml`:
+
+    ```yaml docker-compose.yml
+    services:
+      qa-flow:
+        image: davidg1997/qa-flow:latest
+        ports:
+          - "3001:3001"
+        environment:
+          - PORT=3001
+          - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+          - DATABASE_URL=${DATABASE_URL:-file:/app/data/qa-flow.db}
+        volumes:
+          - qa-flow-data:/app/data
+    ```
+
+    You can also store sensitive values in a `.env` file next to `docker-compose.yml` and reference them with `${VARIABLE}` — Docker Compose picks up the `.env` file automatically.
+  </Tab>
+  <Tab title="Local Development">
+    Copy the example file and fill in your values:
+
+    ```bash
+    cp server/.env.example server/.env
+    ```
+
+    Then edit `server/.env` with your preferred values. The development server reads this file automatically on startup.
+  </Tab>
+</Tabs>
+
+## Example `.env` File
+
+```env server/.env
+PORT=3001
+JWT_SECRET=your-super-secret-key-minimum-32-characters
+DATABASE_URL=file:./data/qa-flow.db
+
+# Optional: Turso cloud database
+# DATABASE_URL=libsql://your-db.turso.io
+# TURSO_AUTH_TOKEN=your-turso-token
+
+# Optional: Remote Chrome DevTools Protocol
+# CDP_URL=http://localhost:9222
+```
+
+## Security Notes
+
+<Warning>
+  `JWT_SECRET` must be at least **32 characters** long in any production or shared deployment. Using the default value `change-me-in-production` exposes every user's session to trivial token forgery attacks. Generate a strong secret with a command like:
+
+  ```bash
+  openssl rand -base64 48
+  ```
+
+  When launching via `npx @davidg97/qa-flow`, a secure random secret is auto-generated for the session — you do not need to set one manually for quick local trials.
+</Warning>
+
+<Note>
+  `TURSO_AUTH_TOKEN` is **only required** when `DATABASE_URL` starts with `libsql://` (i.e., when pointing at a Turso cloud instance). It is not needed for local SQLite files or PostgreSQL connections.
+</Note>
+
+<Tip>
+  In production Docker Compose deployments, avoid hard-coding secrets directly in `docker-compose.yml`. Instead, use a `.env` file (not committed to version control) or a secrets manager, and reference variables with the `${VARIABLE:?error message}` syntax so Compose fails fast when a required value is missing — as shown in `docker-compose.prod.yml` for `JWT_SECRET`.
+</Tip>

@@ -1,0 +1,404 @@
+---
+title: "Reports API: List, View, Download, and Delete Reports"
+sidebarTitle: "Reports"
+description: "Manage HTML test reports generated after each run. Fetch JSON metadata, render the HTML report in a browser, download it as a file, or delete old reports."
+---
+
+QA Flow automatically generates an HTML report after every completed test run. The Reports API lets you list all available reports, retrieve their metadata and summary statistics as JSON, render the full HTML report directly in a browser, download it as a file attachment, or delete reports you no longer need. The Users API — documented at the bottom of this page — is also mounted under the same authenticated API surface and is accessible to admin users only.
+
+---
+
+## GET /api/reports
+
+List all HTML test reports that have been generated on the server, ordered by most recent first.
+
+**Authentication required:** Yes
+
+### Response
+
+An array of report metadata objects.
+
+<ResponseField name="id" type="string">
+  UUID of the report.
+</ResponseField>
+
+<ResponseField name="testRunId" type="string">
+  UUID of the test run this report belongs to.
+</ResponseField>
+
+<ResponseField name="summary" type="string | null">
+  JSON string containing a result summary (totals, pass/fail counts, duration). May be `null` for older reports.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp when the report was created.
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl http://localhost:3001/api/reports \
+  -H 'Authorization: Bearer <token>'
+```
+
+```json Response 200
+[
+  {
+    "id": "rpt-aaa-111",
+    "testRunId": "run-aaa-111",
+    "summary": "{\"totalTests\":8,\"passedTests\":8,\"failedTests\":0,\"duration\":45320}",
+    "createdAt": "2024-04-10T09:00:50.000Z"
+  },
+  {
+    "id": "rpt-bbb-222",
+    "testRunId": "run-bbb-222",
+    "summary": "{\"totalTests\":3,\"passedTests\":1,\"failedTests\":2,\"duration\":3100}",
+    "createdAt": "2024-04-09T15:30:05.000Z"
+  }
+]
+```
+</CodeGroup>
+
+---
+
+## GET /api/reports/:id
+
+Retrieve the JSON metadata and summary for a specific report. Use this to display report stats without loading the full HTML content.
+
+**Authentication required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The UUID of the report to retrieve.
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="string">
+  UUID of the report.
+</ResponseField>
+
+<ResponseField name="testRunId" type="string">
+  UUID of the associated test run.
+</ResponseField>
+
+<ResponseField name="summary" type="string | null">
+  JSON-serialized summary object with result statistics.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp when the report was created.
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl http://localhost:3001/api/reports/rpt-aaa-111 \
+  -H 'Authorization: Bearer <token>'
+```
+
+```json Response 200
+{
+  "id": "rpt-aaa-111",
+  "testRunId": "run-aaa-111",
+  "summary": "{\"totalTests\":8,\"passedTests\":8,\"failedTests\":0,\"duration\":45320}",
+  "createdAt": "2024-04-10T09:00:50.000Z"
+}
+```
+</CodeGroup>
+
+---
+
+## GET /api/reports/:id/html
+
+Serve the full HTML report for rendering in a browser. The response body is a complete, self-contained HTML document styled in the Playwright report format.
+
+**Authentication required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The UUID of the report to render.
+</ParamField>
+
+### Response
+
+Returns `Content-Type: text/html` — a full HTML document that can be displayed directly in an iframe or opened in a browser tab.
+
+<CodeGroup>
+```bash cURL — open in browser
+curl http://localhost:3001/api/reports/rpt-aaa-111/html \
+  -H 'Authorization: Bearer <token>' \
+  -o report.html && open report.html
+```
+
+```bash cURL — raw output
+curl http://localhost:3001/api/reports/rpt-aaa-111/html \
+  -H 'Authorization: Bearer <token>'
+# Returns: <!DOCTYPE html><html lang="en">...</html>
+```
+</CodeGroup>
+
+<Tip>
+  To embed a live report inside a web application, set the `src` of an `<iframe>` to this URL (with appropriate credentials). The server will stream the HTML directly.
+</Tip>
+
+---
+
+## GET /api/reports/:id/download
+
+Download the HTML report as a file attachment. The server sets `Content-Disposition: attachment` so that browsers prompt the user to save the file rather than rendering it.
+
+**Authentication required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The UUID of the report to download.
+</ParamField>
+
+### Response
+
+Returns the report as an HTML file download (`Content-Disposition: attachment; filename="report-<id>.html"`).
+
+```bash
+curl http://localhost:3001/api/reports/rpt-aaa-111/download \
+  -H 'Authorization: Bearer <token>' \
+  -O -J
+# Saves to: report-rpt-aaa-111.html
+```
+
+---
+
+## DELETE /api/reports/:id
+
+Permanently delete a report and its stored HTML content. The associated `TestRun` and `TestResult` records are **not** deleted — only the `Report` record itself is removed.
+
+**Authentication required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The UUID of the report to delete.
+</ParamField>
+
+### Response
+
+Returns `204 No Content` on success.
+
+```bash
+curl -X DELETE http://localhost:3001/api/reports/rpt-aaa-111 \
+  -H 'Authorization: Bearer <token>'
+```
+
+<Warning>
+  Deleting a report is irreversible. The HTML content is removed from the database and cannot be regenerated unless you re-run the associated test.
+</Warning>
+
+---
+
+## Users API (Admin Only)
+
+User management is restricted to accounts with the `ADMIN` role. Requests from non-admin users return `403 Forbidden` with `{ "error": "Prohibido: se requiere rol de administrador" }`.
+
+---
+
+### GET /api/users
+
+List all user accounts registered in the system, ordered by creation date descending.
+
+**Authentication required:** Yes (Admin only)
+
+#### Response
+
+An array of user objects.
+
+<ResponseField name="id" type="string">UUID of the user.</ResponseField>
+<ResponseField name="email" type="string">The user's email address.</ResponseField>
+<ResponseField name="name" type="string | null">The user's display name.</ResponseField>
+<ResponseField name="role" type="string">Either `USER` or `ADMIN`.</ResponseField>
+<ResponseField name="createdAt" type="string">ISO 8601 timestamp of account creation.</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl http://localhost:3001/api/users \
+  -H 'Authorization: Bearer <admin-token>'
+```
+
+```json Response 200
+[
+  {
+    "id": "user-aaa-111",
+    "email": "admin@qaflow.com",
+    "name": "Admin",
+    "role": "ADMIN",
+    "createdAt": "2024-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "user-bbb-222",
+    "email": "jane@example.com",
+    "name": "Jane Doe",
+    "role": "USER",
+    "createdAt": "2024-02-15T09:30:00.000Z"
+  }
+]
+```
+</CodeGroup>
+
+---
+
+### POST /api/users
+
+Create a new user account. Unlike `POST /api/auth/register`, this endpoint is admin-only and allows specifying the user's role at creation time.
+
+**Authentication required:** Yes (Admin only)
+
+#### Request Body
+
+<ParamField body="email" type="string" required>
+  Email address for the new account. Must be unique.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  Initial password for the account. Stored as a bcrypt hash.
+</ParamField>
+
+<ParamField body="name" type="string">
+  Optional display name.
+</ParamField>
+
+<ParamField body="role" type="string">
+  Role to assign. Accepts `ADMIN` or `USER`. Defaults to `USER` if omitted or unrecognized.
+</ParamField>
+
+<CodeGroup>
+```bash cURL
+curl -X POST http://localhost:3001/api/users \
+  -H 'Authorization: Bearer <admin-token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "email": "newuser@example.com",
+    "password": "securePass!1",
+    "name": "New User",
+    "role": "USER"
+  }'
+```
+
+```json Response 201
+{
+  "id": "user-ccc-333",
+  "email": "newuser@example.com",
+  "name": "New User",
+  "role": "USER",
+  "createdAt": "2024-04-15T12:00:00.000Z"
+}
+```
+</CodeGroup>
+
+---
+
+### PUT /api/users/:id
+
+Update a user account. Admins can update any field on any user including `role` and `email`. Regular users can only update their own `name` and `password` — attempting to change `role` or `email` as a non-admin returns `403 Forbidden`.
+
+**Authentication required:** Yes (Admin, or the user themselves for name/password only)
+
+#### Path Parameters
+
+<ParamField path="id" type="string" required>
+  UUID of the user to update.
+</ParamField>
+
+#### Request Body
+
+<ParamField body="name" type="string">
+  Updated display name. Can be set by the user themselves or by an admin.
+</ParamField>
+
+<ParamField body="password" type="string">
+  New password. Hashed with bcrypt before storage. Can be changed by the user themselves or by an admin.
+</ParamField>
+
+<ParamField body="email" type="string">
+  Updated email address. **Admin only.**
+</ParamField>
+
+<ParamField body="role" type="string">
+  Updated role (`ADMIN` or `USER`). **Admin only.**
+</ParamField>
+
+<CodeGroup>
+```bash cURL — admin updates role
+curl -X PUT http://localhost:3001/api/users/user-bbb-222 \
+  -H 'Authorization: Bearer <admin-token>' \
+  -H 'Content-Type: application/json' \
+  -d '{"role": "ADMIN", "email": "jane-new@example.com"}'
+```
+
+```bash cURL — user updates own name
+curl -X PUT http://localhost:3001/api/users/user-bbb-222 \
+  -H 'Authorization: Bearer <user-token>' \
+  -H 'Content-Type: application/json' \
+  -d '{"name": "Jane Smith"}'
+```
+
+```json Response 200
+{
+  "id": "user-bbb-222",
+  "email": "jane-new@example.com",
+  "name": "Jane Smith",
+  "role": "ADMIN",
+  "createdAt": "2024-02-15T09:30:00.000Z"
+}
+```
+</CodeGroup>
+
+<Tabs>
+  <Tab title="403 — Not self or admin">
+    ```json
+    { "error": "No tienes permiso para editar este usuario" }
+    ```
+  </Tab>
+  <Tab title="403 — Non-admin changing role/email">
+    ```json
+    { "error": "Solo un administrador puede modificar el rol o el email" }
+    ```
+  </Tab>
+  <Tab title="404 — User not found">
+    ```json
+    { "error": "Usuario no encontrado" }
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+### DELETE /api/users/:id
+
+Permanently delete a user account and all associated data. An admin cannot delete their own account via this endpoint.
+
+**Authentication required:** Yes (Admin only)
+
+#### Path Parameters
+
+<ParamField path="id" type="string" required>
+  UUID of the user to delete.
+</ParamField>
+
+### Response
+
+Returns `204 No Content` on success.
+
+<CodeGroup>
+```bash cURL
+curl -X DELETE http://localhost:3001/api/users/user-bbb-222 \
+  -H 'Authorization: Bearer <admin-token>'
+```
+
+```text Response 204
+(no body)
+```
+</CodeGroup>
+
+<Warning>
+  Attempting to delete your own account returns `400 Bad Request` with `{ "error": "No puedes eliminar tu propia cuenta" }`. Have another admin account perform the deletion, or use the `/api/auth/me` endpoint to confirm your identity before calling this endpoint.
+</Warning>

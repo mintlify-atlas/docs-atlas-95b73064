@@ -1,0 +1,663 @@
+---
+title: "Node Reference: All Available Test Automation Nodes"
+sidebarTitle: "Node Types"
+description: "Complete reference for all 30+ QA Flow node types organized by category: triggers, actions, assertions, control flow, and lifecycle hooks."
+---
+
+Every step in a QA Flow test is represented by a node. Nodes are dragged from the palette onto the canvas, configured through a field panel, and wired together with edges to define execution order. This page documents every node type available in QA Flow, including its ID, label, purpose, and all configurable fields.
+
+## Trigger Nodes
+
+Trigger nodes mark the entry point of a test flow. Every flow must start with exactly one trigger.
+
+<Accordion title="start — Inicio (Test Entry Point)">
+  **Category:** `trigger` | **Label:** Inicio
+
+  The Start node is the anchor of every flow. It defines the base URL, names the test, assigns tags for filtering, and optionally configures full device emulation for the browser context that Playwright will open.
+
+  **Basic fields:**
+
+  | Field | Type | Required | Description |
+  |---|---|---|---|
+  | `testName` | text | — | Human-readable name for the test (e.g. `My login test`) |
+  | `tags` | tags | — | Comma-separated tags for filtering (e.g. `@smoke, @regression`) |
+  | `baseUrl` | text | ✅ | The root URL all relative paths resolve against (e.g. `https://example.com`) |
+
+  **Emulation group (advanced):**
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `device` | select | *(none)* | Emulate a named device: Pixel 5, Pixel 7, iPhone 12–14 Pro Max, iPad Mini, iPad Pro 11, Galaxy S9+, Galaxy Tab S4 |
+  | `viewportWidth` | number | `1280` | Viewport width in pixels |
+  | `viewportHeight` | number | `720` | Viewport height in pixels |
+  | `deviceScaleFactor` | number | `1` | Device pixel ratio |
+  | `isMobile` | boolean | `false` | Treat the context as a mobile browser |
+  | `hasTouch` | boolean | `false` | Enable touch event support |
+  | `locale` | select | *(default)* | Browser locale: en-US, en-GB, es-ES, es-MX, es-CO, pt-BR, fr-FR, de-DE, it-IT, ja-JP, ko-KR, zh-CN |
+  | `timezoneId` | select | *(default)* | IANA timezone: America/New_York, America/Los_Angeles, America/Bogota, Europe/London, Asia/Tokyo, and more |
+  | `geoLatitude` | text | — | GPS latitude for geolocation emulation |
+  | `geoLongitude` | text | — | GPS longitude for geolocation emulation |
+  | `geoAccuracy` | number | — | Geolocation accuracy in metres |
+  | `colorScheme` | select | *(default)* | Preferred color scheme: `light`, `dark`, or `no-preference` |
+  | `reducedMotion` | select | *(default)* | Reduced motion preference: `reduce` or `no-preference` |
+  | `forcedColors` | select | *(default)* | Forced colors mode: `active` or `none` |
+  | `offline` | boolean | `false` | Simulate an offline network state |
+  | `javaScriptEnabled` | boolean | `true` | Toggle JavaScript execution in the browser context |
+  | `userAgent` | textarea | — | Override the browser's User-Agent string |
+  | `permissions` | tags | — | Browser permissions to grant (e.g. `geolocation, notifications, camera`) |
+</Accordion>
+
+---
+
+## Action Nodes
+
+Action nodes drive the browser — they navigate, interact with elements, and read data from the page. Use them to simulate everything a real user would do.
+
+<Accordion title="navigate — Navegar (Go to URL)">
+  **Category:** `action` | **Label:** Navegar
+
+  Navigates the browser to a specific URL. Supports absolute URLs and root-relative paths that resolve against the Start node's base URL.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `url` | text | ✅ | — | Target URL: `/path` or `https://...` |
+  | `waitUntil` | select | — | `load` | Wait condition: `load` (full page load), `domcontentloaded` (DOM ready), `networkidle` (no pending requests) |
+</Accordion>
+
+<Accordion title="click — Hacer Click (Click Element)">
+  **Category:** `action` | **Label:** Hacer Click
+
+  Clicks a DOM element identified by a selector. Supports left, right, and middle mouse buttons with configurable click count and delay.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `selector` | text | ✅ | — | CSS/XPath selector (e.g. `#id`, `.class`, `button[type="submit"]`) |
+  | `button` | select | — | `left` | Mouse button: `left`, `right`, or `middle` |
+  | `clickCount` | number | — | `1` | Number of clicks to perform |
+  | `delay` | number | — | `0` | Milliseconds between `mousedown` and `mouseup` |
+  | `force` | boolean | — | `false` | Skip actionability checks and force the click |
+  | `timeout` | number | — | `30000` | Maximum wait time in milliseconds |
+</Accordion>
+
+<Accordion title="check — Marcar/Desmarcar Checkbox (Check / Uncheck)">
+  **Category:** `action` | **Label:** Marcar/Desmarcar Checkbox
+
+  Checks or unchecks a checkbox or radio input element.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `selector` | text | ✅ | — | Selector targeting the checkbox (e.g. `input[type="checkbox"]`) |
+  | `action` | select | — | `check` | `check` to mark, `uncheck` to clear |
+  | `force` | boolean | — | `false` | Skip actionability checks |
+  | `timeout` | number | — | `30000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="type — Escribir Texto (Type Text)">
+  **Category:** `action` | **Label:** Escribir Texto
+
+  Types text into a focused input field, optionally clearing it first. Each character fires individual keyboard events, which is useful for inputs that react to `keydown`/`keyup` events.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `selector` | text | ✅ | — | Target input selector (e.g. `input[name="email"]`) |
+  | `text` | text | ✅ | — | The text to type |
+  | `clearFirst` | boolean | — | `true` | Clear the field before typing |
+  | `delay` | number | — | `0` | Milliseconds between each keypress |
+</Accordion>
+
+<Accordion title="fill — Rellenar Campo (Fill Field Instantly)">
+  **Category:** `action` | **Label:** Rellenar Campo
+
+  Fills an input field instantly by setting its value directly — faster than `type` and suitable for most form inputs that don't depend on keyboard event sequences.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `selector` | text | ✅ | — | Target input selector |
+  | `value` | text | ✅ | — | The value to insert |
+</Accordion>
+
+<Accordion title="select — Seleccionar Opción (Select Dropdown Option)">
+  **Category:** `action` | **Label:** Seleccionar Opción
+
+  Selects an option from a `<select>` dropdown element by value, visible label, or index.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `selector` | text | ✅ | — | Selector for the `<select>` element (e.g. `select#country`) |
+  | `value` | text | ✅ | — | The option to select |
+  | `selectBy` | select | — | `value` | Selection strategy: `value` (option value attribute), `label` (visible text), `index` |
+</Accordion>
+
+<Accordion title="hover — Hover (Mouse Over Element)">
+  **Category:** `action` | **Label:** Hover
+
+  Moves the mouse over an element, triggering `mouseover` and `mouseenter` events. Useful for revealing dropdown menus or tooltips.
+
+  | Field | Type | Required | Description |
+  |---|---|---|---|
+  | `selector` | text | ✅ | Target element selector (e.g. `.menu-item`) |
+</Accordion>
+
+<Accordion title="wait — Esperar (Wait for Time or Condition)">
+  **Category:** `action` | **Label:** Esperar
+
+  Pauses execution for a fixed time, until an element is visible or hidden, or until the network is idle.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `waitType` | select | — | `time` | Strategy: `time` (fixed ms), `selector` (element visible), `hidden` (element hidden), `networkidle` |
+  | `value` | text | ✅ | — | Milliseconds (for `time`) or a selector string (for element strategies) |
+  | `timeout` | number | — | `30000` | Maximum wait time in milliseconds |
+</Accordion>
+
+<Accordion title="screenshot — Captura de Pantalla (Take Screenshot)">
+  **Category:** `action` | **Label:** Captura de Pantalla
+
+  Captures a screenshot and saves it to disk. Can capture the full page or a specific element.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `name` | text | ✅ | — | Output filename without extension (e.g. `login-capture`) |
+  | `fullPage` | boolean | — | `false` | Capture the full scrollable page height |
+  | `selector` | text | — | — | Restrict capture to this element (hidden when `fullPage` is true) |
+</Accordion>
+
+<Accordion title="dblclick — Doble Click (Double Click)">
+  **Category:** `action` | **Label:** Doble Click
+
+  Performs a double-click on an element. Supports mouse button selection and delay configuration.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `selector` | text | ✅ | — | Target element selector |
+  | `button` | select | — | `left` | Mouse button: `left`, `right`, `middle` |
+  | `delay` | number | — | `0` | Milliseconds between the two clicks |
+  | `force` | boolean | — | `false` | Skip actionability checks |
+  | `timeout` | number | — | `30000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="clear — Limpiar Campo (Clear Input)">
+  **Category:** `action` | **Label:** Limpiar Campo
+
+  Clears the contents of an input or textarea element.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `selector` | text | ✅ | — | Target input selector (e.g. `input#email`) |
+  | `force` | boolean | — | `false` | Skip actionability checks |
+  | `timeout` | number | — | `30000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="blur — Quitar Foco (Remove Focus)">
+  **Category:** `action` | **Label:** Quitar Foco
+
+  Removes focus from an element by dispatching a `blur` event. Useful for triggering validation that fires on blur.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `selector` | text | ✅ | — | Target element selector |
+  | `timeout` | number | — | `30000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="focus — Dar Foco (Give Focus)">
+  **Category:** `action` | **Label:** Dar Foco
+
+  Focuses an element by dispatching a `focus` event, without simulating any user input.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `selector` | text | ✅ | — | Target element selector |
+  | `timeout` | number | — | `30000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="press — Presionar Tecla (Press Key)">
+  **Category:** `action` | **Label:** Presionar Tecla
+
+  Presses a keyboard key or combination on a focused element. Choose from a preset list or supply a custom key string.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `selector` | text | ✅ | — | Element to focus before pressing (e.g. `input#search`) |
+  | `key` | select | — | `Enter` | Preset key: Enter, Tab, Escape, Backspace, Delete, Arrow keys, Home, End, PageUp/Down, Ctrl+A/C/V/Z/S, F1/F5/F12 |
+  | `customKey` | text | — | — | Custom key combination overriding the preset (e.g. `Shift+Control+a`) |
+  | `delay` | number | — | `0` | Delay in milliseconds |
+  | `timeout` | number | — | `30000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="pressSequentially — Escribir Secuencialmente (Type Character by Character)">
+  **Category:** `action` | **Label:** Escribir Secuencialmente
+
+  Types text one character at a time, simulating a real human typing. Each character fires its own keyboard events with a configurable inter-key delay.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `selector` | text | ✅ | — | Target input selector |
+  | `text` | text | ✅ | — | Text to type character by character |
+  | `delay` | number | — | `50` | Milliseconds between each character |
+  | `timeout` | number | — | `30000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="selectText — Seleccionar Texto (Select All Text)">
+  **Category:** `action` | **Label:** Seleccionar Texto
+
+  Selects all text inside an input or textarea element.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `selector` | text | ✅ | — | Target input or textarea selector |
+  | `force` | boolean | — | `false` | Skip actionability checks |
+  | `timeout` | number | — | `30000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="setInputFiles — Subir Archivo (Upload File)">
+  **Category:** `action` | **Label:** Subir Archivo
+
+  Sets the value of a file input element by providing the path to the file on the server.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `selector` | text | ✅ | — | Selector for the `<input type="file">` element |
+  | `filePath` | text | ✅ | — | Absolute path to the file to upload (e.g. `/path/to/document.pdf`) |
+  | `timeout` | number | — | `30000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="tap — Tap Móvil (Mobile Tap)">
+  **Category:** `action` | **Label:** Tap (Móvil)
+
+  Performs a touch tap on an element. Use this in flows that emulate mobile devices with `hasTouch` enabled on the Start node.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `selector` | text | ✅ | — | Target element selector (e.g. `button.submit`) |
+  | `force` | boolean | — | `false` | Skip actionability checks |
+  | `timeout` | number | — | `30000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="dragTo — Arrastrar y Soltar (Drag and Drop)">
+  **Category:** `action` | **Label:** Arrastrar y Soltar
+
+  Drags a source element and drops it onto a target element.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `sourceSelector` | text | ✅ | — | Selector for the element to drag |
+  | `targetSelector` | text | ✅ | — | Selector for the drop target |
+  | `force` | boolean | — | `false` | Skip actionability checks |
+  | `timeout` | number | — | `30000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="scrollIntoView — Hacer Scroll (Scroll Element Into View)">
+  **Category:** `action` | **Label:** Hacer Scroll
+
+  Scrolls the page until the target element becomes visible in the viewport.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `selector` | text | ✅ | — | Selector for the element to scroll to |
+  | `timeout` | number | — | `30000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="dispatchEvent — Disparar Evento (Dispatch DOM Event)">
+  **Category:** `action` | **Label:** Disparar Evento
+
+  Programmatically dispatches a DOM event on an element. Useful for triggering behavior that native Playwright interactions cannot reach.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `selector` | text | ✅ | — | Target element selector |
+  | `eventType` | select | — | `click` | Event to dispatch: `click`, `dblclick`, `mousedown`, `mouseup`, `mouseover`, `mouseout`, `focus`, `blur`, `input`, `change`, `submit`, `keydown`, `keyup`, `keypress`, `dragstart`, `dragend`, `drop` |
+  | `timeout` | number | — | `30000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="waitFor — Esperar Elemento (Wait for Element State)">
+  **Category:** `action` | **Label:** Esperar Elemento
+
+  Waits until an element reaches a specific DOM state before the flow continues.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `selector` | text | ✅ | — | Selector to watch |
+  | `state` | select | — | `visible` | Expected state: `visible`, `hidden`, `attached` (in DOM), `detached` (removed from DOM) |
+  | `timeout` | number | — | `30000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="getAttribute — Obtener Atributo (Get Element Attribute)">
+  **Category:** `action` | **Label:** Obtener Atributo
+
+  Reads an attribute value from a DOM element and optionally stores it in a named variable for use in subsequent nodes.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `selector` | text | ✅ | — | Target element selector (e.g. `a#link`) |
+  | `attribute` | text | ✅ | — | Attribute name to read (e.g. `href`, `class`, `data-id`) |
+  | `variableName` | text | — | — | Variable name to store the result in |
+  | `timeout` | number | — | `30000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="inputValue — Obtener Valor de Input (Get Input Value)">
+  **Category:** `action` | **Label:** Obtener Valor de Input
+
+  Reads the current value of an input, textarea, or select element and optionally stores it in a variable.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `selector` | text | ✅ | — | Target input selector (e.g. `input#email`) |
+  | `variableName` | text | — | — | Variable name to store the result in |
+  | `timeout` | number | — | `30000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="textContent — Obtener Texto (Get Text Content)">
+  **Category:** `action` | **Label:** Obtener Texto
+
+  Reads the inner text content of an element and optionally stores it in a variable.
+
+  | Field | Type | Required | Default | Description |
+  |---|---|---|---|---|
+  | `selector` | text | ✅ | — | Target element selector (e.g. `span.message`) |
+  | `variableName` | text | — | — | Variable name to store the result in |
+  | `timeout` | number | — | `30000` | Timeout in milliseconds |
+</Accordion>
+
+---
+
+## Assertion Nodes
+
+Assertion nodes verify your application's state by wrapping Playwright's `expect()` API. A failing assertion marks the test as failed and halts the flow at that point.
+
+<Accordion title="assertVisible / assertHidden — Visibility Checks">
+  **assertVisible** (`toBeVisible`) — Verifies that an element is rendered and visible on the page.
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `selector` | text | — | Element to check (e.g. `.success-message`) |
+  | `negate` | boolean | `false` | When `true`, asserts the element is **NOT** visible |
+  | `timeout` | number | `5000` | Timeout in milliseconds |
+
+  ---
+
+  **assertHidden** (`toBeHidden`) — Verifies that an element is hidden or absent from the visible layout.
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `selector` | text | — | Element to check |
+  | `timeout` | number | `5000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="assertAttached — DOM Presence Check">
+  **assertAttached** (`toBeAttached`) — Verifies that an element exists in the DOM, regardless of whether it is visible.
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `selector` | text | — | Element to check (e.g. `#component`) |
+  | `attached` | select | `true` | `true` = in DOM, `false` = not in DOM |
+  | `timeout` | number | `5000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="assertChecked — Checkbox State">
+  **assertChecked** (`toBeChecked`) — Verifies whether a checkbox or radio input is checked or unchecked.
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `selector` | text | — | Checkbox or radio selector |
+  | `checked` | select | `true` | `true` = expects checked, `false` = expects unchecked |
+  | `timeout` | number | `5000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="assertEnabled / assertDisabled — Interactive State">
+  **assertEnabled** (`toBeEnabled`) — Verifies that an interactive element (button, input, etc.) is not disabled.
+
+  **assertDisabled** (`toBeDisabled`) — Verifies that an element has the `disabled` attribute or state.
+
+  Both nodes share the same field structure:
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `selector` | text | — | Element to check (e.g. `button#submit`) |
+  | `timeout` | number | `5000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="assertEditable — Edit State">
+  **assertEditable** (`toBeEditable`) — Verifies whether an input is editable (not read-only and not disabled).
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `selector` | text | — | Input or textarea selector |
+  | `editable` | select | `true` | `true` = editable, `false` = not editable |
+  | `timeout` | number | `5000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="assertEmpty — Empty Container">
+  **assertEmpty** (`toBeEmpty`) — Verifies that an element has no child elements and no text content.
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `selector` | text | — | Container selector (e.g. `.item-list`) |
+  | `timeout` | number | `5000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="assertFocused — Focus State">
+  **assertFocused** (`toBeFocused`) — Verifies that an element currently has keyboard focus.
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `selector` | text | — | Element to check (e.g. `input#email`) |
+  | `timeout` | number | `5000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="assertInViewport — Viewport Visibility">
+  **assertInViewport** (`toBeInViewport`) — Verifies that an element is within the visible viewport area. An optional ratio sets the minimum fraction of the element that must be visible.
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `selector` | text | — | Element to check |
+  | `ratio` | number | `0` | Minimum visible ratio from `0.0` to `1.0` |
+  | `timeout` | number | `5000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="assertText — Text Content Check">
+  **assertText** (`toHaveText` / `toContainText`) — Verifies the text content of an element, with options for exact match, substring, or regular expression.
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `selector` | text | — | Element to read (e.g. `h1.title`) |
+  | `expectedText` | text | — | The text to match against |
+  | `matchType` | select | `contains` | `exact` (toHaveText), `contains` (toContainText), or `regex` |
+  | `ignoreCase` | boolean | `false` | Case-insensitive comparison |
+  | `timeout` | number | `5000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="assertCSS — CSS Property Check">
+  **assertCSS** (`toHaveCSS`) — Verifies that a computed CSS property of an element has the expected value.
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `selector` | text | — | Target element (e.g. `.button`) |
+  | `cssProperty` | text | — | CSS property name (e.g. `background-color`, `display`, `opacity`) |
+  | `expectedValue` | text | — | Expected computed value (e.g. `rgb(255, 0, 0)`, `block`, `1`) |
+  | `timeout` | number | `5000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="assertId — Element ID Check">
+  **assertId** (`toHaveId`) — Verifies that the `id` attribute of an element matches an expected value.
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `selector` | text | — | Element to inspect |
+  | `expectedId` | text | — | Expected `id` attribute value (e.g. `user-profile`) |
+  | `timeout` | number | `5000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="assertRole — ARIA Role Check">
+  **assertRole** (`toHaveRole`) — Verifies the ARIA role of an element. Supports the full set of WAI-ARIA roles including `button`, `checkbox`, `dialog`, `link`, `navigation`, `textbox`, `grid`, and many more.
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `selector` | text | — | Element to check |
+  | `expectedRole` | select | `button` | Expected ARIA role (full list covers ~35 roles) |
+  | `timeout` | number | `5000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="assertAccessibleName / assertAccessibleDescription — Accessibility Checks">
+  **assertAccessibleName** (`toHaveAccessibleName`) — Verifies the accessible name of an element as computed by the accessibility tree.
+
+  **assertAccessibleDescription** (`toHaveAccessibleDescription`) — Verifies the accessible description of an element.
+
+  Both follow the same structure:
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `selector` | text | — | Element to inspect |
+  | `expectedName` / `expectedDescription` | text | — | Expected accessible name or description string |
+  | `timeout` | number | `5000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="assertUrl / assertTitle — Page-Level Checks">
+  **assertUrl** (`toHaveURL`) — Verifies the current page URL.
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `expectedUrl` | text | — | URL to match (e.g. `/dashboard` or `https://...`) |
+  | `matchType` | select | `contains` | `exact`, `contains`, or `regex` |
+  | `timeout` | number | `5000` | Timeout in milliseconds |
+
+  ---
+
+  **assertTitle** (`toHaveTitle`) — Verifies the `<title>` of the current page.
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `expectedTitle` | text | — | Title to match |
+  | `matchType` | select | `contains` | `exact`, `contains`, or `regex` |
+  | `timeout` | number | `5000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="assertValue / assertValues — Input Value Checks">
+  **assertValue** (`toHaveValue`) — Verifies the current value of an input, textarea, or select element.
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `selector` | text | — | Input to inspect |
+  | `expectedValue` | text | — | Expected value string |
+  | `timeout` | number | `5000` | Timeout in milliseconds |
+
+  ---
+
+  **assertValues** (`toHaveValues`) — Verifies the selected values of a multi-select element.
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `selector` | text | — | `<select multiple>` selector |
+  | `expectedValues` | text | — | Comma-separated expected values (e.g. `red,blue,green`) |
+  | `timeout` | number | `5000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="assertCount — Element Count Check">
+  **assertCount** (`toHaveCount`) — Verifies the number of elements matching a selector, with flexible comparison operators.
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `selector` | text | — | Selector to count (e.g. `.list-item`) |
+  | `expectedCount` | number | — | The count to compare against |
+  | `comparison` | select | `equal` | `equal`, `greaterThan`, `lessThan`, `greaterOrEqual`, `lessOrEqual` |
+  | `timeout` | number | `5000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="assertScreenshot — Visual Regression Check">
+  **assertScreenshot** (`toHaveScreenshot`) — Captures a screenshot and compares it pixel-by-pixel against a stored baseline image. Fails if the difference exceeds the configured threshold.
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `selector` | text | — | Element to capture (leave empty for full page) |
+  | `screenshotName` | text | — | Name for the baseline image (e.g. `login-form`) |
+  | `maxDiffPixels` | number | `0` | Maximum number of differing pixels allowed |
+  | `maxDiffPixelRatio` | number | `0` | Maximum ratio of differing pixels (`0.0`–`1.0`) |
+  | `timeout` | number | `5000` | Timeout in milliseconds |
+
+  <Note>
+    On the first run, `assertScreenshot` creates the baseline image automatically. Subsequent runs compare against that baseline. Delete the baseline file to regenerate it after intentional UI changes.
+  </Note>
+</Accordion>
+
+---
+
+## Control Flow Nodes
+
+Control flow nodes add branching and repetition to your test graph. They let you handle dynamic states and data-driven scenarios without writing code.
+
+<Accordion title="if — Condición (Conditional Branch)">
+  **Category:** `control` | **Label:** Condición (If)
+
+  Evaluates a condition and routes execution down one of two output edges — the **true** branch or the **false** branch. This lets your flow adapt to variable page states such as the presence of a cookie banner or an optional modal.
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `conditionType` | select | `elementExists` | Condition to evaluate: `elementExists`, `elementVisible`, `textContains`, `urlContains` |
+  | `selector` | text | — | Element selector or text/URL value to evaluate |
+
+  Connect nodes to the **true** output for the path when the condition passes, and to the **false** output for when it does not.
+</Accordion>
+
+<Accordion title="loop — Bucle (Repeat Actions)">
+  **Category:** `control` | **Label:** Bucle (Loop)
+
+  Repeats a connected sequence of nodes a fixed number of times, once per matched element, or once per item in a data array.
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `loopType` | select | `count` | Loop strategy: `count` (fixed iterations), `elements` (one pass per matching DOM element), `data` (one pass per data row) |
+  | `value` | text | — | Number of iterations (for `count`) or a CSS selector (for `elements`) |
+</Accordion>
+
+<Accordion title="code — Código JavaScript (Custom Script)">
+  **Category:** `control` | **Label:** Código JavaScript
+
+  Executes arbitrary JavaScript inside the Playwright test context. The script has access to the `page`, `context`, and `browser` objects, enabling anything Playwright can do.
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `code` | textarea | — | JavaScript code to execute. Variables `page`, `context`, and `browser` are available. |
+  | `description` | text | — | Human-readable summary of what this code does |
+  | `awaitResult` | boolean | `true` | Whether to `await` the result of the code expression |
+
+  ```javascript
+  // Example: read the page title and log it
+  const title = await page.title();
+  console.log('Page title:', title);
+  ```
+
+  <Warning>
+    Code nodes execute with full access to the Playwright API. Only run trusted code — malicious scripts can access the file system or network from the test runner process.
+  </Warning>
+</Accordion>
+
+---
+
+## Hook Nodes
+
+Hook nodes mirror Playwright's test lifecycle and let you define shared setup and teardown logic that runs before or after individual tests or entire test suites.
+
+<Accordion title="beforeAll / afterAll — Suite-Level Hooks">
+  **beforeAll** — Runs once before all tests in the current group. Use it to set up shared state such as seeding a database or spinning up a mock server.
+
+  **afterAll** — Runs once after all tests in the group complete, regardless of pass/fail. Use it to tear down anything created in `beforeAll`.
+
+  Both nodes share the same fields:
+
+  | Field | Type | Description |
+  |---|---|---|
+  | `hookName` | text | Descriptive name for the hook (e.g. `Initial Setup`) |
+  | `description` | textarea | What this hook does |
+</Accordion>
+
+<Accordion title="beforeEach / afterEach — Per-Test Hooks">
+  **beforeEach** — Runs before every individual test in the group. Common uses: navigate to the starting URL, log in, or reset application state.
+
+  **afterEach** — Runs after every individual test. Common uses: take a failure screenshot, log out, or clean up test data.
+
+  Both nodes share the same fields:
+
+  | Field | Type | Description |
+  |---|---|---|
+  | `hookName` | text | Descriptive name (e.g. `Login before each test`) |
+  | `description` | textarea | What this hook does |
+</Accordion>

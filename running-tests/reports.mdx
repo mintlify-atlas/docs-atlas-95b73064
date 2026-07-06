@@ -1,0 +1,184 @@
+---
+title: "Test Reports: HTML Results, Screenshots, and History"
+sidebarTitle: "Reports"
+description: "QA Flow generates a Playwright-style HTML report for every test run, including per-node results, screenshots, durations, and pass/fail history."
+---
+
+Every time you execute a test suite, QA Flow automatically generates a full HTML report modeled after Playwright's native report format. Reports capture every detail you need to understand what happened: which nodes passed or failed, any error messages, screenshots taken during the run, the duration of each step, and overall aggregate statistics. Reports are persisted across sessions so you can review, compare, and share them long after a run completes.
+
+## What a Report Contains
+
+A QA Flow report is structured around two levels of data: the overall **Test Run** and the individual **Test Results** for each node that was executed.
+
+<CardGroup cols={2}>
+  <Card title="Test Run Summary" icon="chart-bar">
+    - Overall status (`passed` / `failed`)
+    - Total tests, passed count, failed count
+    - Total suite duration
+    - Start and completion timestamps
+    - Project ID reference
+  </Card>
+  <Card title="Per-Node Results" icon="list-check">
+    - Node ID, type, and label
+    - Success / failure status
+    - Result message and full error text (on failure)
+    - Duration in milliseconds
+    - Screenshot (on failure or via Screenshot node)
+  </Card>
+</CardGroup>
+
+### Report data model
+
+```typescript
+// TestRun — top-level record
+{
+  id: string;
+  projectId: string;
+  status: "passed" | "failed";
+  startedAt: string;       // ISO 8601
+  completedAt: string;     // ISO 8601
+  totalTests: number;
+  passedTests: number;
+  failedTests: number;
+  duration: number;        // ms
+}
+
+// TestResult — one entry per executed node
+{
+  nodeId: string;
+  nodeType: string;        // e.g. "click", "assertText", "navigate"
+  nodeLabel: string;       // human-readable label from the canvas
+  success: boolean;
+  message: string;         // descriptive result message
+  error?: string;          // stack trace or error text on failure
+  duration: number;        // ms
+  screenshot?: string;     // base64 PNG or file path
+}
+```
+
+---
+
+## Accessing Reports
+
+### From the Editor
+
+After a test run completes, a **View Report** button appears in the execution panel. Clicking it opens the full HTML report in a new browser tab, rendered directly from the server — no separate download required.
+
+### Via the REST API
+
+QA Flow exposes a complete report management API:
+
+<Tabs>
+  <Tab title="List & Fetch">
+    | Method | Endpoint | Description |
+    |--------|----------|-------------|
+    | `GET` | `/api/reports` | List all stored reports (id, status, timestamps, test counts) |
+    | `GET` | `/api/reports/:id` | Fetch the full report as JSON |
+    | `GET` | `/api/reports/:id/html` | Serve the HTML report directly in the browser |
+    | `GET` | `/api/reports/:id/download` | Trigger a file download of the HTML report |
+
+    ```bash
+    # Get the HTML report in your browser
+    curl http://localhost:3001/api/reports/a3f8c2d1-.../html \
+      -H 'Authorization: Bearer <token>'
+
+    # Download the HTML file
+    curl -O -J http://localhost:3001/api/reports/a3f8c2d1-.../download \
+      -H 'Authorization: Bearer <token>'
+    ```
+  </Tab>
+  <Tab title="Delete">
+    | Method | Endpoint | Description |
+    |--------|----------|-------------|
+    | `DELETE` | `/api/reports/:id` | Permanently delete a report |
+
+    ```bash
+    curl -X DELETE http://localhost:3001/api/reports/a3f8c2d1-... \
+      -H 'Authorization: Bearer <token>'
+    ```
+  </Tab>
+  <Tab title="Via Test Run">
+    Reports are also accessible through the test run that produced them:
+
+    | Method | Endpoint | Description |
+    |--------|----------|-------------|
+    | `GET` | `/api/test-runs/:id/report` | Fetch the report associated with a test run |
+
+    The response format adapts automatically: if the request sends an `Accept: text/html` header, the server returns the rendered HTML page directly. Otherwise it returns JSON.
+
+    ```bash
+    # Get JSON report data
+    curl http://localhost:3001/api/test-runs/abc123/report \
+      -H 'Authorization: Bearer <token>' \
+      -H 'Accept: application/json'
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Test Run History
+
+QA Flow persists every test run to the database, giving you a full audit trail of your suite's health over time.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/test-runs` | Recent runs (defaults to 20; override with `?limit=N`) |
+| `GET` | `/api/test-runs/:id` | Full run record including all per-node `TestResult` entries |
+| `GET` | `/api/test-runs/project/:projectId` | All runs for a specific project (accepts `?limit=N`) |
+
+```bash
+# Get the last 50 runs
+curl "http://localhost:3001/api/test-runs?limit=50" \
+  -H 'Authorization: Bearer <token>'
+
+# Get all runs for a specific project
+curl http://localhost:3001/api/test-runs/project/my-project-id \
+  -H 'Authorization: Bearer <token>'
+```
+
+<Note>
+  `GET /api/test-runs` and `GET /api/test-runs/project/:projectId` both support the `?limit=N` query parameter. The default is `20` for the general list and `10` for the project-scoped list. Adjust as needed when building dashboards or CI status pages.
+</Note>
+
+---
+
+## Screenshots
+
+Screenshots are embedded in reports in two scenarios:
+
+<CardGroup cols={2}>
+  <Card title="Automatic on Failure" icon="camera">
+    When any node fails, QA Flow automatically captures a screenshot of the browser at the moment of failure and attaches it to that node's `TestResult`. No configuration needed — this happens for every run.
+  </Card>
+  <Card title="Explicit Screenshot Node" icon="image">
+    Add a **Screenshot** node anywhere in your flow to capture the viewport (or a specific element) at that exact point. The captured image is stored with the report and rendered in the HTML view alongside the node's result row.
+  </Card>
+</CardGroup>
+
+Screenshots are stored as part of the report data and rendered inline inside the HTML report, making it easy to see at a glance what the page looked like when a test failed — without having to reproduce the failure locally.
+
+---
+
+## CI / CD Integration
+
+<Tip>
+  For CI pipelines, use the `GET /api/reports/:id/download` endpoint after a run completes to retrieve the self-contained HTML file and publish it as a build artifact. Most CI platforms (GitHub Actions, GitLab CI, Jenkins) support uploading HTML artifacts that are then browsable directly from the build summary page. Combine this with the `GET /api/executions` endpoint to automatically find the latest `executionId` after a `POST /api/run` call.
+</Tip>
+
+A minimal CI workflow looks like this:
+
+<Steps>
+  <Step title="Trigger the run">
+    `POST /api/run` with your flow payload. Save the `executionId` from the response.
+  </Step>
+  <Step title="Poll for completion">
+    `GET /api/status/:executionId` in a loop until `status` is `completed` or `failed`.
+  </Step>
+  <Step title="Download the report">
+    `GET /api/reports/:reportId/download` — the `reportId` is returned in the final WebSocket notification or can be looked up via `GET /api/reports`.
+  </Step>
+  <Step title="Publish as artifact">
+    Upload the downloaded `.html` file to your CI platform's artifact storage. Fail the build if `failedTests > 0`.
+  </Step>
+</Steps>

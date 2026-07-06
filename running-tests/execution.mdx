@@ -1,0 +1,162 @@
+---
+title: "Execute Tests: Serial, Parallel, and Advanced Options"
+sidebarTitle: "Execution"
+description: "Run QA Flow tests with configurable execution mode, worker count, retry logic, timeouts, and per-run failure limits to suit any test suite."
+---
+
+QA Flow gives you fine-grained control over how your Playwright tests are executed — from simple single-threaded runs to fully parallel multi-worker suites. Configure execution behavior once in the Project Settings modal and every subsequent run will respect those preferences, or override them on demand through the REST API.
+
+## Triggering a Test Run
+
+There are two ways to start a test run: directly from the visual editor, or programmatically through the API.
+
+<CardGroup cols={2}>
+  <Card title="From the Editor" icon="play">
+    Click the **▶ Execute** button in the top toolbar. The execution panel slides open on the right and immediately begins streaming live node-status updates and the browser screencast.
+  </Card>
+  <Card title="Via the REST API" icon="code">
+    `POST /api/run` accepts a JSON body with your flow definition and returns an `executionId` instantly. The run continues in the background and its status is queryable at any time.
+  </Card>
+</CardGroup>
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/run` | Start a new test execution |
+| `GET` | `/api/status/:executionId` | Poll the status of a running or completed execution |
+| `GET` | `/api/executions` | List the 20 most recent executions |
+
+The `POST /api/run` request body must include the `flow` object (nodes + edges). Optionally pass an `options` object to override `slowMo` and `timeout` for that individual run.
+
+```bash
+curl -X POST http://localhost:3001/api/run \
+  -H 'Authorization: Bearer <token>' \
+  -H 'Content-Type: application/json' \
+  -d '{"projectId": "your-project-id"}'
+```
+
+The response returns immediately:
+
+```json
+{
+  "executionId": "a3f8c2d1-...",
+  "message": "Ejecución iniciada",
+  "wsUrl": "ws://localhost:3001"
+}
+```
+
+You can then poll the execution status:
+
+```bash
+curl http://localhost:3001/api/status/a3f8c2d1-... \
+  -H 'Authorization: Bearer <token>'
+```
+
+Status values follow the lifecycle: `pending` → `running` → `completed` | `failed`.
+
+---
+
+## Execution Modes
+
+QA Flow maps directly onto Playwright's test runner concepts. The execution mode is set in **Project Settings → Execution Mode**.
+
+<Tabs>
+  <Tab title="Default">
+    Playwright's built-in default behavior. Tests run sequentially within a single worker unless Playwright itself decides otherwise. Best for small projects or when you want predictable, repeatable ordering without any configuration overhead.
+
+    ```json
+    { "executionMode": "default" }
+    ```
+  </Tab>
+  <Tab title="Serial">
+    Tests are guaranteed to execute **one after another** in strict order. If a test fails and you have `retries` set, the retry occurs before moving to the next test. Use serial mode when tests share state or depend on a specific execution order.
+
+    ```json
+    { "executionMode": "serial" }
+    ```
+  </Tab>
+  <Tab title="Parallel">
+    Tests are distributed across multiple **worker processes** and run concurrently. This can dramatically cut total execution time for large suites. Pair with the `workers` setting to control how many concurrent browsers are spawned.
+
+    ```json
+    { "executionMode": "parallel", "workers": 4 }
+    ```
+
+    <Warning>
+      Parallel mode requires that your tests are fully independent. Tests that share a login session, database records, or file system state may interfere with each other.
+    </Warning>
+  </Tab>
+</Tabs>
+
+---
+
+## Project Configuration Reference
+
+All execution options come from the `ProjectConfig` interface defined in `src/types/nodes.ts`. Open **Project Settings** (gear icon) in the editor to adjust these values with a GUI, or supply them directly in the API request body.
+
+<Card title="ProjectConfig" icon="sliders">
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `executionMode` | `'default' \| 'parallel' \| 'serial'` | `'default'` | Controls how Playwright schedules tests |
+| `workers` | `number` (1–10) | `4` | Number of parallel worker processes; only active in `parallel` mode |
+| `retries` | `number` | `0` | Times to automatically retry a failed test before marking it as failed |
+| `timeout` | `number` (ms) | `30000` | Maximum time allowed for each individual action (e.g., a click or assertion) |
+| `maxFailures` | `number` | `0` | Stop the entire suite after this many failures; `0` means run to completion regardless |
+| `cdpUrl` | `string` (optional) | `''` | Connect test execution to a specific remote Chrome instance via CDP |
+
+</Card>
+
+### Full configuration example
+
+```json
+{
+  "executionMode": "parallel",
+  "workers": 6,
+  "retries": 2,
+  "timeout": 15000,
+  "maxFailures": 5,
+  "cdpUrl": ""
+}
+```
+
+---
+
+## Node Status Indicators
+
+While a run is in progress the editor canvas updates each node in real time to reflect its current state:
+
+| Indicator | Meaning |
+|-----------|---------|
+| 🟡 Yellow pulse | Node is currently executing |
+| 🟢 Green | Node completed successfully |
+| 🔴 Red | Node failed (check the execution panel for the error message) |
+
+Nodes that have not yet been reached remain in their default neutral state, making it easy to see where the run is currently at a glance.
+
+---
+
+## Choosing the Right Settings
+
+<Steps>
+  <Step title="Start with Default mode">
+    Unless you have a specific reason to use parallel or serial, start with `default`. It requires no extra thought about test isolation and gives you a reliable baseline.
+  </Step>
+  <Step title="Increase workers gradually for parallel runs">
+    When switching to `parallel`, start with `workers: 2` and verify your tests pass consistently before increasing. Each worker spins up a full Chromium instance, so very high worker counts (8–10) require substantial RAM — plan for roughly 200–400 MB per worker.
+  </Step>
+  <Step title="Tune timeout to your application's response time">
+    The default `timeout` of `30000` ms (30 seconds) is generous. For fast local apps you can lower it to `10000`–`15000` to make failures surface faster. For slower CI environments or apps with heavy network calls, leave it at 30 s or increase it.
+  </Step>
+  <Step title="Use maxFailures in CI to fail fast">
+    Setting `maxFailures: 1` or `maxFailures: 5` prevents a suite with a systemic failure (e.g., wrong base URL) from running hundreds of tests before you see the problem. Set it to `0` for full coverage reporting in nightly runs.
+  </Step>
+  <Step title="Set retries for flaky tests">
+    A `retries: 1` or `retries: 2` value absorbs transient failures (network blips, animation timing) without permanently suppressing real bugs. Avoid setting it above `3` — high retry counts mask genuine reliability problems.
+  </Step>
+</Steps>
+
+<Tip>
+  The `cdpUrl` field lets you attach execution to an already-open Chrome window. This is especially useful for debugging: open Chrome with `--remote-debugging-port=9222`, set `cdpUrl` to `http://localhost:9222`, and watch the test run live in your own browser. See the [Real-Time View](/running-tests/real-time-view) page for the full setup guide.
+</Tip>

@@ -1,0 +1,105 @@
+---
+title: "QA Flow Editor: Visual Canvas and Interface Guide"
+sidebarTitle: "Overview"
+description: "Explore the QA Flow visual editor — the node palette, interactive canvas, flow connections, project settings modal, and execution panel."
+---
+
+QA Flow's editor is a browser-based visual workspace where you design Playwright tests by connecting nodes on an interactive canvas — no code required. The interface is split into three primary zones: a categorized node palette on the left, the central React Flow (XyFlow) canvas where your test graph lives, and an execution panel on the right that streams live test output and a browser screencast as your flow runs.
+
+## Editor Layout
+
+<CardGroup cols={3}>
+  <Card title="Node Palette" icon="sidebar">
+    The left panel lists every available node type organized by category — Triggers, Actions, Assertions, Control Flow, and Hooks. Drag any node from the palette directly onto the canvas to add it to your flow.
+  </Card>
+  <Card title="Canvas" icon="diagram-project">
+    The center area is the interactive XyFlow canvas. Nodes are positioned freely, and you draw connections by dragging from one node's output handle to the next node's input handle to define execution order.
+  </Card>
+  <Card title="Execution Panel" icon="play">
+    The right panel runs your flow and shows real-time progress. Each node lights up green (pass), red (fail), or yellow (in progress). A built-in screencast renders the live browser view so you can watch every action as it executes.
+  </Card>
+</CardGroup>
+
+## Node Categories
+
+The palette groups nodes into five categories, each serving a distinct role in your test:
+
+<CardGroup cols={2}>
+  <Card title="Triggers" icon="flag">
+    A single **Start** (`start`) node anchors every flow. It defines the base URL, test name, tags, and the full device emulation profile — viewport, locale, timezone, geolocation, color scheme, network settings, user agent, and browser permissions.
+  </Card>
+  <Card title="Actions" icon="hand-pointer">
+    Actions drive the browser: **Navigate**, **Click**, **Type**, **Fill**, **Select**, **Hover**, **Wait**, **Screenshot**, **Double Click**, **Clear**, **Blur**, **Focus**, **Press**, **Press Sequentially**, **Select Text**, **Upload File**, **Tap**, **Drag & Drop**, **Scroll Into View**, **Dispatch Event**, **Wait For**, **Get Attribute**, **Get Input Value**, and **Get Text**.
+  </Card>
+  <Card title="Assertions" icon="circle-check">
+    Assertions verify your application's state: **assertVisible**, **assertHidden**, **assertAttached**, **assertChecked**, **assertEnabled**, **assertDisabled**, **assertEditable**, **assertEmpty**, **assertFocused**, **assertInViewport**, **assertText**, **assertCSS**, **assertId**, **assertRole**, **assertAccessibleName**, **assertAccessibleDescription**, **assertUrl**, **assertTitle**, **assertValue**, **assertValues**, **assertCount**, and **assertScreenshot**.
+  </Card>
+  <Card title="Control Flow" icon="code-branch">
+    Control Flow nodes add logic to your test: **If** (branches on conditions like element existence, visibility, text content, or URL), **Loop** (repeats over a count, element set, or data array), and **Code** (runs arbitrary JavaScript with access to `page`, `context`, and `browser`).
+  </Card>
+</CardGroup>
+
+<Card title="Lifecycle Hooks" icon="rotate">
+  Hook nodes mirror Playwright's test lifecycle: **beforeAll** (runs once before the test group), **beforeEach** (runs before every test), **afterEach** (runs after every test), and **afterAll** (runs once after the test group ends). Use them for shared setup and teardown logic.
+</Card>
+
+## Building a Flow
+
+<Steps>
+  <Step title="Add a Start node">
+    Drag the **Inicio** (Start) node from the Triggers section of the palette onto the canvas. Open it and fill in at minimum the **Base URL** and a **Test Name**. Optionally expand the Emulation group to configure device, viewport, locale, or timezone.
+  </Step>
+  <Step title="Add action and assertion nodes">
+    Drag the nodes that represent each step of your user journey — for example, **Navigate** → **Fill** → **Click** → **assertVisible**. Each node opens a configuration panel when selected; fill in the required fields (usually a selector and a value).
+  </Step>
+  <Step title="Connect nodes">
+    Drag from the **output handle** (right edge) of one node to the **input handle** (left edge) of the next. The arrow indicates execution order. Conditional branches from an **If** node produce two separate output edges (true/false).
+  </Step>
+  <Step title="Run the flow">
+    Click the **▶️ Execute** button in the editor toolbar. The execution panel streams progress in real time, highlighting each node as it runs and displaying the browser screencast automatically via CDP.
+  </Step>
+</Steps>
+
+## Project Settings
+
+Open the settings modal from the toolbar to configure how the entire project executes. These options map directly to Playwright's configuration file:
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `executionMode` | `default` \| `serial` \| `parallel` | `default` | Controls whether tests run sequentially or in parallel |
+| `workers` | number | `4` | Number of parallel worker processes |
+| `retries` | number | `0` | Times to retry a failed test automatically |
+| `timeout` | number (ms) | `30000` | Maximum time allowed for each action |
+| `maxFailures` | number | `0` | Stop the run after this many failures (0 = unlimited) |
+| `cdpUrl` | string | *(empty)* | Remote Chrome DevTools Protocol URL for connecting to an existing browser |
+
+<Note>
+  Setting `workers` greater than `1` only has effect when `executionMode` is set to `parallel`. In `serial` mode all tests run one at a time regardless of the worker count.
+</Note>
+
+## Saving Projects
+
+Flows are persisted automatically as you edit. A **Save** button in the toolbar triggers an explicit save if you prefer manual control. Projects are stored server-side and survive browser refreshes.
+
+## Import and Export
+
+Any project can be exported as a self-contained JSON file from the project menu. That file captures the full node graph, edge connections, and project configuration. Import it on any QA Flow instance to restore the identical flow — useful for version-controlling test suites or sharing tests across teams.
+
+<Tip>
+  Export your projects before major restructuring so you have a snapshot you can roll back to. The JSON format is human-readable and can be committed directly to a git repository.
+</Tip>
+
+## Canvas Navigation
+
+| Action | How |
+|---|---|
+| Pan | Click and drag on empty canvas space |
+| Zoom in / out | Scroll wheel or pinch on trackpad |
+| Fit flow to screen | Click the **Fit View** button in the canvas controls |
+| Select multiple nodes | Hold **Shift** and click each node, or drag a selection box |
+| Delete a node or edge | Select it and press **Backspace** or **Delete** |
+| Move a node | Click and drag the node header |
+
+<Info>
+  The canvas uses XyFlow (formerly React Flow) under the hood. All standard React Flow keyboard shortcuts and mouse interactions apply on the QA Flow canvas.
+</Info>
