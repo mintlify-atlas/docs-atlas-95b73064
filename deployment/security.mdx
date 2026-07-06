@@ -1,5 +1,5 @@
 ---
-title: "Secure QA Flow for Production Deployments"
+title: "Secure QA Flow for Production Deployments and Access"
 sidebarTitle: "Security"
 description: "Configure JWT secrets, change default credentials, enforce HTTPS, and understand QA Flow's role-based access control before going to production."
 ---
@@ -63,7 +63,7 @@ curl -X POST http://localhost:3001/api/auth/login \
 
 **Use the token:**
 
-```
+```http
 Authorization: Bearer <jwt_token>
 ```
 

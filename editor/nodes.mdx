@@ -1,7 +1,7 @@
 ---
-title: "Node Reference: All Available Test Automation Nodes"
+title: "QA Flow Node Reference: All Test Automation Node Types"
 sidebarTitle: "Node Types"
-description: "Complete reference for all 30+ QA Flow node types organized by category: triggers, actions, assertions, control flow, and lifecycle hooks."
+description: "Complete reference for all QA Flow node types organized by category: triggers, actions, assertions, control flow, and lifecycle hooks."
 ---
 
 Every step in a QA Flow test is represented by a node. Nodes are dragged from the palette onto the canvas, configured through a field panel, and wired together with edges to define execution order. This page documents every node type available in QA Flow, including its ID, label, purpose, and all configurable fields.
@@ -463,6 +463,28 @@ Assertion nodes verify your application's state by wrapping Playwright's `expect
   | `expectedText` | text | — | The text to match against |
   | `matchType` | select | `contains` | `exact` (toHaveText), `contains` (toContainText), or `regex` |
   | `ignoreCase` | boolean | `false` | Case-insensitive comparison |
+  | `timeout` | number | `5000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="assertAttribute — DOM Attribute Check">
+  **assertAttribute** (`toHaveAttribute`) — Verifies the value of a DOM attribute on an element. If `expectedValue` is left empty, the assertion only checks that the attribute exists.
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `selector` | text | — | Target element selector (e.g. `a#link`) |
+  | `attribute` | text | — | Attribute name to verify (e.g. `href`, `class`, `data-id`) |
+  | `expectedValue` | text | — | Expected attribute value; leave empty to assert existence only |
+  | `timeout` | number | `5000` | Timeout in milliseconds |
+</Accordion>
+
+<Accordion title="assertClass — CSS Class Check">
+  **assertClass** (`toHaveClass` / `toContainClass`) — Verifies the CSS class or classes applied to an element. Use `contains` to check that a class is present among others, or `exact` to match the full class list.
+
+  | Field | Type | Default | Description |
+  |---|---|---|---|
+  | `selector` | text | — | Target element selector (e.g. `div#card`) |
+  | `expectedClass` | text | — | One or more space-separated class names to verify (e.g. `active highlighted`) |
+  | `matchType` | select | `contains` | `exact` (toHaveClass — full class list must match) or `contains` (toContainClass — class must be present) |
   | `timeout` | number | `5000` | Timeout in milliseconds |
 </Accordion>
 

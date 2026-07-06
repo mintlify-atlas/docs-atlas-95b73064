@@ -1,5 +1,5 @@
 ---
-title: "Test Runs API: History, Results, and Reports"
+title: "Test Runs API: Query History, Results, and HTML Reports"
 sidebarTitle: "Test Runs"
 description: "Retrieve test run history, individual run results with per-node details, and HTML reports for any past execution by run ID or project ID."
 ---
@@ -79,7 +79,7 @@ The Test Runs API provides persistent, queryable access to every execution that 
 
 List the most recent test runs across all projects. Results are ordered by creation date descending. Use the `limit` query parameter to control the number of records returned.
 
-**Authentication required:** Yes
+**Authentication required:** No
 
 ### Query Parameters
 
@@ -93,8 +93,7 @@ An array of [TestRun objects](#testrun-object) (without the nested `results` arr
 
 <CodeGroup>
 ```bash cURL
-curl 'http://localhost:3001/api/test-runs?limit=5' \
-  -H 'Authorization: Bearer <token>'
+curl 'http://localhost:3001/api/test-runs?limit=5'
 ```
 
 ```json Response 200
@@ -135,7 +134,7 @@ curl 'http://localhost:3001/api/test-runs?limit=5' \
 
 Retrieve a single test run with its complete array of `TestResult` records. Use this endpoint to display a full execution report with per-node pass/fail details.
 
-**Authentication required:** Yes
+**Authentication required:** No
 
 ### Path Parameters
 
@@ -149,8 +148,7 @@ A [TestRun object](#testrun-object) with a populated `results` array. Returns `4
 
 <CodeGroup>
 ```bash cURL
-curl http://localhost:3001/api/test-runs/run-aaa-111 \
-  -H 'Authorization: Bearer <token>'
+curl http://localhost:3001/api/test-runs/run-aaa-111
 ```
 
 ```json Response 200
@@ -206,7 +204,7 @@ curl http://localhost:3001/api/test-runs/run-aaa-111 \
 
 Retrieve the most recent test runs for a specific project, ordered by creation date descending. Useful for displaying a project's run history in the UI.
 
-**Authentication required:** Yes
+**Authentication required:** No
 
 ### Path Parameters
 
@@ -226,8 +224,7 @@ An array of [TestRun objects](#testrun-object) (without nested results).
 
 <CodeGroup>
 ```bash cURL
-curl 'http://localhost:3001/api/test-runs/project/proj-abc-123?limit=3' \
-  -H 'Authorization: Bearer <token>'
+curl 'http://localhost:3001/api/test-runs/project/proj-abc-123?limit=3'
 ```
 
 ```json Response 200
@@ -255,7 +252,7 @@ curl 'http://localhost:3001/api/test-runs/project/proj-abc-123?limit=3' \
 
 Retrieve the HTML report generated for a completed test run. The response format is determined by content negotiation using the `Accept` header.
 
-**Authentication required:** Yes
+**Authentication required:** No
 
 ### Path Parameters
 
@@ -271,7 +268,6 @@ Retrieve the HTML report generated for a completed test run. The response format
 
     ```bash
     curl http://localhost:3001/api/test-runs/run-aaa-111/report \
-      -H 'Authorization: Bearer <token>' \
       -H 'Accept: text/html'
     ```
 
@@ -282,7 +278,6 @@ Retrieve the HTML report generated for a completed test run. The response format
 
     ```bash
     curl http://localhost:3001/api/test-runs/run-aaa-111/report \
-      -H 'Authorization: Bearer <token>' \
       -H 'Accept: application/json'
     ```
 

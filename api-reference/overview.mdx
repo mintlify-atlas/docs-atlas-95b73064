@@ -1,7 +1,7 @@
 ---
-title: "QA Flow REST API: Base URL, Auth, and Conventions"
+title: "QA Flow REST API: Base URL, Auth, and Endpoint Index"
 sidebarTitle: "Overview"
-description: "QA Flow exposes a REST API on port 3001. All endpoints except login and register require a Bearer JWT token in the Authorization header."
+description: "QA Flow REST API on port 3001. Auth and Projects routes require a Bearer JWT token; execution, recording, report, and flow utility endpoints are open."
 ---
 
 QA Flow's REST API gives you programmatic control over every aspect of the platform — creating and managing test projects, triggering Playwright executions, recording new test flows, inspecting results, and downloading reports. The API follows standard REST conventions: resources are JSON objects, HTTP verbs map to CRUD operations, and errors are returned as `{ "error": "..." }` JSON objects with an appropriate status code.
@@ -18,7 +18,7 @@ For production deployments, replace `http://localhost:3001` with your deployed h
 
 ## Authentication
 
-QA Flow uses **JWT Bearer tokens** for authentication. Every request — except `POST /api/auth/login` and `POST /api/auth/register` — must include the token in an `Authorization` header:
+QA Flow uses **JWT Bearer tokens** for authentication. Endpoints marked **Auth: Yes** in the index below require a Bearer token in the `Authorization` header. The `Auth` and `Users` route groups are the only routes that enforce authentication — project management requires a token while execution, recording, test-run history, report, picker, and flow utility endpoints are currently open. Pass the token as:
 
 ```
 Authorization: Bearer <token>
@@ -94,61 +94,61 @@ Below is a complete index of every API endpoint, grouped by resource.
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `POST` | `/run` | Yes | Trigger a test execution for a project |
-| `GET` | `/status/:executionId` | Yes | Poll status of a running/completed execution |
-| `GET` | `/executions` | Yes | List all past executions |
+| `POST` | `/run` | No | Trigger a test execution for a project |
+| `GET` | `/status/:executionId` | No | Poll status of a running/completed execution |
+| `GET` | `/executions` | No | List all past executions |
 
 ### Test Runs — `/api/test-runs`
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/test-runs` | Yes | List recent test runs (default limit 20) |
-| `GET` | `/test-runs/:id` | Yes | Get a specific test run with results |
-| `GET` | `/test-runs/project/:projectId` | Yes | Get test runs for a project (default limit 10) |
-| `GET` | `/test-runs/:id/report` | Yes | Get HTML or JSON report for a run |
+| `GET` | `/test-runs` | No | List recent test runs (default limit 20) |
+| `GET` | `/test-runs/:id` | No | Get a specific test run with results |
+| `GET` | `/test-runs/project/:projectId` | No | Get test runs for a project (default limit 10) |
+| `GET` | `/test-runs/:id/report` | No | Get HTML or JSON report for a run |
 
 ### Recording — `/api`
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `POST` | `/record/start` | Yes | Start a Playwright Codegen recording session |
-| `GET` | `/record/status/:sessionId` | Yes | Check recording session status |
-| `POST` | `/record/stop/:sessionId` | Yes | Stop a recording session |
-| `GET` | `/record/code/:sessionId` | Yes | Get raw recorded Playwright TypeScript code |
-| `GET` | `/record/nodes/:sessionId` | Yes | Get recorded interactions as QA Flow nodes |
-| `POST` | `/parse-code` | Yes | Parse Playwright TypeScript code into nodes |
-| `GET` | `/recordings` | Yes | List all recording sessions |
-| `DELETE` | `/recordings/:sessionId` | Yes | Delete a specific recording session |
-| `DELETE` | `/recordings` | Yes | Delete all recording sessions |
-| `POST` | `/recordings/cleanup` | Yes | Clean up stale or orphaned sessions |
+| `POST` | `/record/start` | No | Start a Playwright Codegen recording session |
+| `GET` | `/record/status/:sessionId` | No | Check recording session status |
+| `POST` | `/record/stop/:sessionId` | No | Stop a recording session |
+| `GET` | `/record/code/:sessionId` | No | Get raw recorded Playwright TypeScript code |
+| `GET` | `/record/nodes/:sessionId` | No | Get recorded interactions as QA Flow nodes |
+| `POST` | `/parse-code` | No | Parse Playwright TypeScript code into nodes |
+| `GET` | `/recordings` | No | List all recording sessions |
+| `DELETE` | `/recordings/:sessionId` | No | Delete a specific recording session |
+| `DELETE` | `/recordings` | No | Delete all recording sessions |
+| `POST` | `/recordings/cleanup` | No | Clean up stale or orphaned sessions |
 
 ### Picker — `/api/picker`
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `POST` | `/picker/start` | Yes | Start a visual element picker session |
-| `POST` | `/picker/interactive/start` | Yes | Start an interactive picker (Docker-compatible) |
-| `POST` | `/picker/interactive/select` | Yes | Select an element by coordinates |
-| `POST` | `/picker/interactive/scroll` | Yes | Scroll within an interactive picker session |
-| `POST` | `/picker/cancel/:sessionId` | Yes | Cancel a picker session |
-| `GET` | `/picker/status/:sessionId` | Yes | Get picker session status |
+| `POST` | `/picker/start` | No | Start a visual element picker session |
+| `POST` | `/picker/interactive/start` | No | Start an interactive picker (Docker-compatible) |
+| `POST` | `/picker/interactive/select` | No | Select an element by coordinates |
+| `POST` | `/picker/interactive/scroll` | No | Scroll within an interactive picker session |
+| `POST` | `/picker/cancel/:sessionId` | No | Cancel a picker session |
+| `GET` | `/picker/status/:sessionId` | No | Get picker session status |
 
 ### Reports — `/api/reports`
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/reports` | Yes | List all generated HTML reports |
-| `GET` | `/reports/:id` | Yes | Get report JSON metadata and summary |
-| `GET` | `/reports/:id/html` | Yes | Render report as HTML in the browser |
-| `GET` | `/reports/:id/download` | Yes | Download the report HTML as a file |
-| `DELETE` | `/reports/:id` | Yes | Delete a report |
+| `GET` | `/reports` | No | List all generated HTML reports |
+| `GET` | `/reports/:id` | No | Get report JSON metadata and summary |
+| `GET` | `/reports/:id/html` | No | Render report as HTML in the browser |
+| `GET` | `/reports/:id/download` | No | Download the report HTML as a file |
+| `DELETE` | `/reports/:id` | No | Delete a report |
 
 ### Code — `/api`
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `POST` | `/generate-code` | Yes | Generate Playwright TypeScript code from a flow |
-| `POST` | `/flows` | Yes | Save a flow definition |
+| `POST` | `/generate-code` | No | Generate Playwright TypeScript code from a flow |
+| `POST` | `/flows` | No | Save a flow definition |
 | `GET` | `/health` | No | Health check |
 
 ### Users (Admin Only) — `/api/users`

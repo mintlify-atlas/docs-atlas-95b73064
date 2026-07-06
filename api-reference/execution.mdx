@@ -1,7 +1,7 @@
 ---
-title: "Execution API: Run Tests and Check Status"
+title: "Execution API: Trigger Runs, Poll Status, and List History"
 sidebarTitle: "Execution"
-description: "Trigger test execution for a project, poll execution status, and list past runs. Execution uses Playwright under the hood and streams progress via WebSocket."
+description: "Trigger a Playwright test run for any project, poll execution status by ID, and list all past runs. Real-time progress is also available over WebSocket."
 ---
 
 The Execution API lets you kick off a Playwright test run for any saved project, poll the status of an in-flight execution, and retrieve a list of all past executions. Under the hood, QA Flow compiles the project's node graph into a Playwright test suite, runs it in a headless browser, and persists the results as a `TestRun` record with associated `TestResult` entries for each node.
@@ -16,7 +16,7 @@ The Execution API lets you kick off a Playwright test run for any saved project,
 
 Trigger a new test execution for the specified project. QA Flow resolves the project's node graph, generates a Playwright test suite, and executes it asynchronously. The response returns an `executionId` that you can use to poll for status.
 
-**Authentication required:** Yes
+**Authentication required:** No
 
 ### Request Body
 
@@ -33,7 +33,6 @@ Trigger a new test execution for the specified project. QA Flow resolves the pro
 <CodeGroup>
 ```bash cURL
 curl -X POST http://localhost:3001/api/run \
-  -H 'Authorization: Bearer <token>' \
   -H 'Content-Type: application/json' \
   -d '{"projectId": "proj-abc-123"}'
 ```
@@ -55,7 +54,7 @@ curl -X POST http://localhost:3001/api/run \
 
 Retrieve the current status and results of an execution. While the run is in progress the `results` array is populated incrementally as each node finishes. When the run completes (or fails), the full result set is available.
 
-**Authentication required:** Yes
+**Authentication required:** No
 
 ### Path Parameters
 
@@ -90,8 +89,7 @@ Retrieve the current status and results of an execution. While the run is in pro
 
 <CodeGroup>
 ```bash cURL — poll status
-curl http://localhost:3001/api/status/exec-7f8g9h \
-  -H 'Authorization: Bearer <token>'
+curl http://localhost:3001/api/status/exec-7f8g9h
 ```
 
 ```json Response — running
@@ -155,7 +153,7 @@ curl http://localhost:3001/api/status/exec-7f8g9h \
 
 List all past executions recorded in the system. Returns a summary array ordered by most recent first, allowing you to review historical run data without fetching the full result set for each one.
 
-**Authentication required:** Yes
+**Authentication required:** No
 
 ### Response
 
@@ -199,8 +197,7 @@ An array of execution summary objects.
 
 <CodeGroup>
 ```bash cURL
-curl http://localhost:3001/api/executions \
-  -H 'Authorization: Bearer <token>'
+curl http://localhost:3001/api/executions
 ```
 
 ```json Response 200

@@ -12,7 +12,7 @@ A QA Flow report is structured around two levels of data: the overall **Test Run
 
 <CardGroup cols={2}>
   <Card title="Test Run Summary" icon="chart-bar">
-    - Overall status (`passed` / `failed`)
+    - Overall status (`pending` / `running` / `completed` / `failed`)
     - Total tests, passed count, failed count
     - Total suite duration
     - Start and completion timestamps
@@ -34,25 +34,31 @@ A QA Flow report is structured around two levels of data: the overall **Test Run
 {
   id: string;
   projectId: string;
-  status: "passed" | "failed";
-  startedAt: string;       // ISO 8601
-  completedAt: string;     // ISO 8601
+  status: "pending" | "running" | "completed" | "failed";
+  startedAt?: string;      // ISO 8601
+  completedAt?: string;    // ISO 8601
+  error?: string;          // error message if the run itself failed
   totalTests: number;
   passedTests: number;
   failedTests: number;
-  duration: number;        // ms
+  duration?: number;       // ms
+  createdAt: string;       // ISO 8601
 }
 
 // TestResult — one entry per executed node
 {
+  id: string;
+  testRunId: string;
   nodeId: string;
   nodeType: string;        // e.g. "click", "assertText", "navigate"
-  nodeLabel: string;       // human-readable label from the canvas
+  nodeLabel?: string;      // human-readable label from the canvas
+  testName?: string;       // name of the test this node belongs to
   success: boolean;
-  message: string;         // descriptive result message
+  message?: string;        // descriptive result message
   error?: string;          // stack trace or error text on failure
-  duration: number;        // ms
+  duration?: number;       // ms
   screenshot?: string;     // base64 PNG or file path
+  executedAt: string;      // ISO 8601
 }
 ```
 

@@ -31,9 +31,17 @@ The `POST /api/run` request body must include the `flow` object (nodes + edges).
 
 ```bash
 curl -X POST http://localhost:3001/api/run \
-  -H 'Authorization: Bearer <token>' \
   -H 'Content-Type: application/json' \
-  -d '{"projectId": "your-project-id"}'
+  -d '{
+    "flow": {
+      "nodes": [...],
+      "edges": [...]
+    },
+    "options": {
+      "slowMo": 100,
+      "timeout": 30000
+    }
+  }'
 ```
 
 The response returns immediately:

@@ -4,7 +4,7 @@ sidebarTitle: "Reports"
 description: "Manage HTML test reports generated after each run. Fetch JSON metadata, render the HTML report in a browser, download it as a file, or delete old reports."
 ---
 
-QA Flow automatically generates an HTML report after every completed test run. The Reports API lets you list all available reports, retrieve their metadata and summary statistics as JSON, render the full HTML report directly in a browser, download it as a file attachment, or delete reports you no longer need. The Users API — documented at the bottom of this page — is also mounted under the same authenticated API surface and is accessible to admin users only.
+QA Flow automatically generates an HTML report after every completed test run. The Reports API lets you list all available reports, retrieve their metadata and summary statistics as JSON, render the full HTML report directly in a browser, download it as a file attachment, or delete reports you no longer need. This page also documents the Users API, which is restricted to admin accounts and covers listing, creating, updating, and deleting user records.
 
 ---
 
@@ -12,7 +12,7 @@ QA Flow automatically generates an HTML report after every completed test run. T
 
 List all HTML test reports that have been generated on the server, ordered by most recent first.
 
-**Authentication required:** Yes
+**Authentication required:** No
 
 ### Response
 
@@ -36,8 +36,7 @@ An array of report metadata objects.
 
 <CodeGroup>
 ```bash cURL
-curl http://localhost:3001/api/reports \
-  -H 'Authorization: Bearer <token>'
+curl http://localhost:3001/api/reports
 ```
 
 ```json Response 200
@@ -64,7 +63,7 @@ curl http://localhost:3001/api/reports \
 
 Retrieve the JSON metadata and summary for a specific report. Use this to display report stats without loading the full HTML content.
 
-**Authentication required:** Yes
+**Authentication required:** No
 
 ### Path Parameters
 
@@ -92,8 +91,7 @@ Retrieve the JSON metadata and summary for a specific report. Use this to displa
 
 <CodeGroup>
 ```bash cURL
-curl http://localhost:3001/api/reports/rpt-aaa-111 \
-  -H 'Authorization: Bearer <token>'
+curl http://localhost:3001/api/reports/rpt-aaa-111
 ```
 
 ```json Response 200
@@ -112,7 +110,7 @@ curl http://localhost:3001/api/reports/rpt-aaa-111 \
 
 Serve the full HTML report for rendering in a browser. The response body is a complete, self-contained HTML document styled in the Playwright report format.
 
-**Authentication required:** Yes
+**Authentication required:** No
 
 ### Path Parameters
 
@@ -127,13 +125,11 @@ Returns `Content-Type: text/html` — a full HTML document that can be displayed
 <CodeGroup>
 ```bash cURL — open in browser
 curl http://localhost:3001/api/reports/rpt-aaa-111/html \
-  -H 'Authorization: Bearer <token>' \
   -o report.html && open report.html
 ```
 
 ```bash cURL — raw output
-curl http://localhost:3001/api/reports/rpt-aaa-111/html \
-  -H 'Authorization: Bearer <token>'
+curl http://localhost:3001/api/reports/rpt-aaa-111/html
 # Returns: <!DOCTYPE html><html lang="en">...</html>
 ```
 </CodeGroup>
@@ -148,7 +144,7 @@ curl http://localhost:3001/api/reports/rpt-aaa-111/html \
 
 Download the HTML report as a file attachment. The server sets `Content-Disposition: attachment` so that browsers prompt the user to save the file rather than rendering it.
 
-**Authentication required:** Yes
+**Authentication required:** No
 
 ### Path Parameters
 
@@ -162,7 +158,6 @@ Returns the report as an HTML file download (`Content-Disposition: attachment; f
 
 ```bash
 curl http://localhost:3001/api/reports/rpt-aaa-111/download \
-  -H 'Authorization: Bearer <token>' \
   -O -J
 # Saves to: report-rpt-aaa-111.html
 ```
@@ -173,7 +168,7 @@ curl http://localhost:3001/api/reports/rpt-aaa-111/download \
 
 Permanently delete a report and its stored HTML content. The associated `TestRun` and `TestResult` records are **not** deleted — only the `Report` record itself is removed.
 
-**Authentication required:** Yes
+**Authentication required:** No
 
 ### Path Parameters
 
@@ -186,8 +181,7 @@ Permanently delete a report and its stored HTML content. The associated `TestRun
 Returns `204 No Content` on success.
 
 ```bash
-curl -X DELETE http://localhost:3001/api/reports/rpt-aaa-111 \
-  -H 'Authorization: Bearer <token>'
+curl -X DELETE http://localhost:3001/api/reports/rpt-aaa-111
 ```
 
 <Warning>

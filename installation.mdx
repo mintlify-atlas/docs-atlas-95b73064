@@ -1,5 +1,5 @@
 ---
-title: "Install QA Flow: npx, Docker, and Local Dev Setup"
+title: "Installing QA Flow: npx, Docker, and Local Dev Setup"
 sidebarTitle: "Installation"
 description: "Install QA Flow via npx for instant use, run the Docker image directly, or set up a local development environment with the full source code."
 ---
@@ -186,7 +186,7 @@ QA Flow ships as a pre-built Docker image (`davidg1997/qa-flow`) that bundles th
         pnpm db:generate
         ```
 
-        The default `server/.env` configures a local SQLite database at `server/data/qa-flow.db`. Edit the file to point at a Turso cloud database if preferred.
+        The default `server/.env` configures a local SQLite database at `./dev.db` (relative to the `server/` directory). Edit the file to point at a Turso cloud database if preferred.
       </Step>
 
       <Step title="Start the development servers">

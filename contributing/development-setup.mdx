@@ -1,5 +1,5 @@
 ---
-title: "Set Up QA Flow for Local Development"
+title: "Set Up QA Flow for Local Development and Hot Reload"
 sidebarTitle: "Dev Setup"
 description: "Clone QA Flow, install dependencies with pnpm, configure the database, and start the development server with hot reload for frontend and backend."
 ---
@@ -80,7 +80,7 @@ Before you begin, make sure the following tools are installed on your machine:
 
 Understanding where things live helps you navigate the codebase quickly. QA Flow is organised into three main areas: the React frontend (`src/`), the Express backend (`server/`), and the npx launcher CLI (`packages/cli/`).
 
-```
+```text
 qa-flow/
 ├── src/                 # Frontend (React + Vite)
 │   ├── components/      # UI components
@@ -117,6 +117,7 @@ All scripts are run from the repository root using `pnpm`:
 | `pnpm dev:all` | Start frontend (port 3000) and backend (port 3001) concurrently |
 | `pnpm dev` | Start frontend only (port 3000) |
 | `pnpm server` | Start backend only (port 3001) |
+| `pnpm build` | Build the frontend for production |
 | `pnpm build:all` | Build all packages for production |
 | `pnpm test` | Run the test suite |
 | `pnpm db:migrate` | Apply pending database migrations |

@@ -1,5 +1,5 @@
 ---
-title: "Contributing to QA Flow: Guidelines and Git Flow"
+title: "QA Flow Contribution Guidelines and Git Flow Workflow"
 sidebarTitle: "Guidelines"
 description: "Learn how to contribute to QA Flow with conventional commits, the PR process, branching strategy, and the manual release workflow for collaborators."
 ---
@@ -24,7 +24,7 @@ QA Flow welcomes contributions of all kinds — from bug reports and feature ide
 
 QA Flow uses a simplified fork-based flow where collaborators control all releases. Merging to `main` does **not** automatically trigger a release — all releases are created manually.
 
-```
+```text
 CONTRIBUTORS
   Fork → feature/* → PR to main → Review → Merge
                                      ↓
@@ -45,7 +45,7 @@ COLLABORATORS
 
 QA Flow follows the [Conventional Commits](https://www.conventionalcommits.org/) specification. Every commit message must start with a type and an optional scope, followed by a short description:
 
-```
+```text
 <type>(<scope>): <description>
 
 [optional body]
@@ -69,7 +69,7 @@ QA Flow follows the [Conventional Commits](https://www.conventionalcommits.org/)
 
 ### Examples
 
-```
+```bash
 feat(nodes): add new "Scroll" node type
 fix(executor): handle timeout errors gracefully
 docs(readme): update installation instructions
